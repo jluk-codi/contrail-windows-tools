@@ -1,0 +1,3 @@
+# QtCreator build directories and user config files
+build-*/
+*.qbs.user
