@@ -37,6 +37,9 @@ class Utils(object):
 
         return ret
 
+    def __repr__(self):
+	print self.__class__.__name__.lower() + " " + " ".join(self.arguments)
+
 
 class Tool():
     def __getattr__(cls, key):
