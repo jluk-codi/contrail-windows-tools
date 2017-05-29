@@ -22,23 +22,9 @@ class Utils(object):
 
         self.arguments += ["%s%s %s" % (dash, d, kwargs[d]) for d in kwargs]
 
-    def execute(self, prefix=""):
-        if prefix:
-            self.arguments = [prefix] + self.arguments
-        else:
-            self.arguments = [self.__class__.__name__.lower()] + self.arguments
 
-        try:
-            ret = subprocess.call(self.arguments)
-
-        except Exception as e:
-            logging.error("Error during subprocess.call on command: %s" % " ".join(self.arguments))
-            raise
-
-        return ret
-
-    def __repr__(self):
-	print self.__class__.__name__.lower() + " " + " ".join(self.arguments)
+    def __call__(self):
+        return self.__class__.__name__.lower() + " " + " ".join(self.arguments)
 
 
 class Tool():
