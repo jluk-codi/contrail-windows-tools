@@ -1,0 +1,3 @@
+[submodule "common/npcap"]
+	path = common/npcap
+	url = git@github.com:nmap/npcap.git
