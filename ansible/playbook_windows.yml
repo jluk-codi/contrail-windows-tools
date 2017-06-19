@@ -1,0 +1,86 @@
+- name: test raw module
+  hosts: all
+  tasks:
+    - name: Copy vRouter installer to remote machines
+      win_copy:
+        src: vRouter.msi
+        dest: C:\Tmp\vRouter.msi
+
+    - name: Installing vRouter
+      win_msi:
+        path: c:\Tmp\vRouter.msi
+        wait: true
+
+    - name: Copy utils installer to remote machines
+      win_copy:
+        src: utilsMSI.msi
+        dest: c:\utilsMSI.msi
+
+    - name: Installing utils
+      win_msi:
+        path: c:\utilsMSI.msi
+        wait: true
+
+    - name: Copy docker installer on remote machine
+      win_copy:
+        src: InstallDocker.msi
+        dest: c:\InstallDocker.msi
+
+    - name: Installing docker
+      win_msi:
+        path: c:\InstallDocker.msi
+        wait: true
+
+    - name: Copy contrail docker driver installer on remote machine 
+      win_copy:
+        src: installer.msi
+        dest: c:\installer.msi
+
+    - name: Installing contrail docker driver
+      win_msi:
+        path: c:\installer.msi
+        wait: true
+   
+    - name: Start contrail-windows-docker
+      win_shell: Stop-Service contrail*
+
+    - name: Get ethernet1
+      raw: ipconfig
+      register: ipconfig
+    - debug: var=ipconfig
+
+    - name: Start contrail-windows-docker
+      win_shell: .\contrail-windows-docker.exe -controllerIP contrail311.wincontrail.codilime.com -logLevel debug -adapter <Ethernet1>
+ 
+    - name: Enable powershell extension
+      win_shell: Enable-VMSwitchExtension -Name "vRouter forwarding extension"
+
+    - name: nh list
+      win_shell: nh.exe --list
+      register: out
+
+    - set_fact:
+        string_to_echo: "{{ out.stdout.split()}}"
+
+    - debug: var=string_to_echo 
+
+    - name: Creating networks
+      win_shell: docker network create --ipam-driver windows --driver Contrail -o tenant=multi_host_ping_test -o network=testnet testnet
+ 
+    - name: Running containers
+      win_shell: docker run --network testnet -d microsoft/nanoserver ping -t localhost
+
+    - name: Getting MAC and ifName of VMs
+      win_shell: Get-NetAdapter $Using:adapter | Select Name,ifName,MacAddress,ifIndex
+
+    - name: Getting MAC and interface Names of Containers
+      win_shell: docker exec $Using:container1_id powershell "Get-NetAdapter | Select-Object Name,ifName,MacAddress | Format-List"
+
+    - name: Creating vif #1
+      win_shell: vif --add $Using:vm1_ifName --mac $Using:vm1_mac --vrf 0 --type physical
+      win_shell: vif --add HNSTransparent --mac $Using:vm1_mac --vrf 0 --type vhost --xconnect $Using:vm1_ifName
+      win_shell: vif --add $Using:container1_iName --mac $Using:container1_mac --vrf 1 --type virtual --vif 1
+ 
+    - name: Getting vif id of physical adapter
+      win_shell: vif --list
+
