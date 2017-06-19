@@ -50,11 +50,11 @@
     - debug: var=ipconfig
 
     - name: Start contrail-windows-docker
-      win_shell: .\contrail-windows-docker.exe -controllerIP contrail311.wincontrail.codilime.com -logLevel debug -adapter <Ethernet1>
- 
-    - name: Enable powershell extension
-      win_shell: Enable-VMSwitchExtension -Name "vRouter forwarding extension"
+      win_shell: Start-Job -ScriptBlock {C:\contrail-windows-docker.exe -controllerIP contrail311.wincontrail.codilime.com -logLevel debug -adapter Ethernet1 -os_auth_url http://10.7.0.54:5000/v2.0 -os_password secret123 -os_tenant_name admin -os_username admin}
 
+    - pause:
+        minutes: 1
+ 
     - name: nh list
       win_shell: nh.exe --list
       register: out
