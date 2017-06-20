@@ -1,4 +1,10 @@
-function Test-MPLSoGRE ([PSSession]$sess1, [PSSession]$sess2, [string]$adapterName) {
+function Test-MPLSoGRE {
+    param (
+        $sess1,
+        $sess2,
+        $adapterName
+    )
+
     Write-Host "Creating networks"
     Invoke-Command -Session $sess2 -ScriptBlock { docker network create --ipam-driver windows --driver Contrail -o tenant=multi_host_ping_test -o network=testnet testnet }
     Invoke-Command -Session $sess1 -ScriptBlock { docker network create --ipam-driver windows --driver Contrail -o tenant=multi_host_ping_test -o network=testnet testnet }
