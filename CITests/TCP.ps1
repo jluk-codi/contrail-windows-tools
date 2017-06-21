@@ -1,4 +1,4 @@
-function Test-TCP ([PSSession]$sess, [string]$adapter) {
+function Test-TCP ($sess, $adapter) {
     Invoke-Command -Session $sess -ScriptBlock {
         docker network create --ipam-driver windows --driver Contrail -o tenant=multi_host_ping_test -o network=testnet testnet
 
