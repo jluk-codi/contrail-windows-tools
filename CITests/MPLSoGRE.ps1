@@ -2,7 +2,7 @@ function Test-MPLSoGRE {
     param (
         $sess1,
         $sess2,
-        $adapterName
+        $adapter
     )
 
     Write-Host "Creating networks"
