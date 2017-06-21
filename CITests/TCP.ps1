@@ -41,18 +41,12 @@ function Test-TCP ($sess, $adapter) {
         docker exec $server_id netsh interface ipv4 add neighbors $server_adapter_fullname $client_IP $client_mac_win
         docker exec $client_id netsh interface ipv4 add neighbors $client_adapter_fullname $server_IP $server_mac_win
 
-        $test_succeeded = $TRUE
+        docker exec $client_id powershell "Invoke-WebRequest -Uri http://${server_ip}:8080/"
+    }
 
-        try {
-            $res = docker exec $client_id powershell "(Invoke-WebRequest -Uri http://${server_ip}:8080/).StatusCode"
-            if ($res -ne 200) { $test_succeeded = $False }
-        } catch {
-            $test_succeeded = $False
-        }
-
-        if (-Not $test_succeeded) {
-            Write-Host "TCP test failed!"
-            exit 1
-        }
+    $res = Invoke-Command -Session $sess -ScriptBlock { $lastExitCode }
+    if($res -ne 0) {
+        Write-Host "TCP test failed!"
+        exit 1
     }
 }
