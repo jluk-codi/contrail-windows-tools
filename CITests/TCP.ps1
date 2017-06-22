@@ -1,14 +1,17 @@
-function Test-TCP ($sess, $adapter) {
+function Test-TCP ($sess, $adapter, $testConfiguration) {
+    Prepare-CleanTestConfiguration -sess $sess -adapter $adapter -testConfiguration $testConfiguration
+    
     Invoke-Command -Session $sess -ScriptBlock {
-        docker network create --ipam-driver windows --driver Contrail -o tenant=multi_host_ping_test -o network=testnet testnet
-
+        Write-Host "Creating containers"
         $server_id = docker run --network testnet -d iis-tcptest; $server_id
         $client_id = docker run --network testnet -d microsoft/nanoserver ping -t localhost; $client_id
 
+        Write-Host "Getting MAC and ifName of VM"
         $res = Get-NetAdapter $Using:adapter | Select Name,ifName,MacAddress,ifIndex
         $vm_mac = $res.MacAddress.Replace("-", ":").ToLower(); $vm_mac
         $vm_ifName = $res.ifName; $vm_ifName
 
+        Write-Host "Getting MAC and interface Names of Containers"
         $server_adapter_fullname = docker exec $server_id powershell "(Get-NetAdapter -Name *Container*)[0].Name"; $server_adapter_fullname
         $server_adapter_shortname = $server_adapter_fullname.Split("()")[1].Trim(); $server_adapter_shortname
 
@@ -21,6 +24,7 @@ function Test-TCP ($sess, $adapter) {
         $client_mac_win = docker exec $client_id powershell "(Get-NetAdapter -Name *Container*)[0].MacAddress.ToLower()"; $client_mac_win
         $client_mac = $client_mac_win.Replace("-", ":"); $client_mac
 
+        Write-Host "Configuring..."
         vif.exe --add $vm_ifName --mac $vm_mac --vrf 0 --type physical
         vif.exe --add HNSTransparent --mac $vm_mac --vrf 0 --type vhost --xconnect $vm_ifName
 
@@ -35,12 +39,15 @@ function Test-TCP ($sess, $adapter) {
         rt.exe -c -v 1 -f 1 -e $server_mac -n 1
         rt.exe -c -v 1 -f 1 -e $client_mac -n 2
 
+        Write-Host "Getting containers IPs"
         $server_IP = docker exec $server_id powershell "(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias vEthernet*).IPAddress"; $server_IP
         $client_IP = docker exec $client_id powershell "(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias vEthernet*).IPAddress"; $client_IP
 
+        Write-Host "Executing netsh"
         docker exec $server_id netsh interface ipv4 add neighbors $server_adapter_fullname $client_IP $client_mac_win
         docker exec $client_id netsh interface ipv4 add neighbors $client_adapter_fullname $server_IP $server_mac_win
 
+        Write-Host "Invoking web request"
         docker exec $client_id powershell "Invoke-WebRequest -Uri http://${server_ip}:8080/"
     }
 

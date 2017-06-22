@@ -1,13 +1,6 @@
-function Test-MPLSoGRE {
-    param (
-        $sess1,
-        $sess2,
-        $adapter
-    )
-
-    Write-Host "Creating networks"
-    Invoke-Command -Session $sess2 -ScriptBlock { docker network create --ipam-driver windows --driver Contrail -o tenant=multi_host_ping_test -o network=testnet testnet }
-    Invoke-Command -Session $sess1 -ScriptBlock { docker network create --ipam-driver windows --driver Contrail -o tenant=multi_host_ping_test -o network=testnet testnet }
+function Test-MPLSoGRE($sess1, $sess2, $adapter, $testConfiguration) { 
+    Prepare-CleanTestConfiguration -sess $sess1 -adapter $adapter -testConfiguration $testConfiguration
+    Prepare-CleanTestConfiguration -sess $sess2 -adapter $adapter -testConfiguration $testConfiguration
     
     Write-Host "Running containers"
     $container1_id = Invoke-Command -Session $sess1 -ScriptBlock { docker run --network testnet -d microsoft/nanoserver ping -t localhost }; $container1_id
@@ -95,6 +88,7 @@ function Test-MPLSoGRE {
         docker exec $Using:container2_id netsh interface ipv4 add neighbors "$Using:container2_iFullName" $Using:container1_ip $Using:container1_mac_win
     }
     
+    Write-Host "Testing ping"
     $res1 = Invoke-Command -Session $sess1 -ScriptBlock { docker exec $Using:container1_id powershell "ping $Using:container2_ip > null 2>&1; $LASTEXITCODE;" }
     $res2 = Invoke-Command -Session $sess2 -ScriptBlock { docker exec $Using:container2_id powershell "ping $Using:container1_ip > null 2>&1; $LASTEXITCODE;" }
     
