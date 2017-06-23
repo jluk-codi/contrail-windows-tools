@@ -52,6 +52,10 @@ function Test-TCP ($sess, $adapter, $testConfiguration) {
     }
 
     $res = Invoke-Command -Session $sess -ScriptBlock { $lastExitCode }
+
+    Write-Host "Removing containers"
+    Invoke-Command -Session $sess -ScriptBlock { docker rm -f $(docker ps -a -q) }
+
     if($res -ne 0) {
         Write-Host "TCP test failed!"
         exit 1
