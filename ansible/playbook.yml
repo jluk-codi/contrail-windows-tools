@@ -1,0 +1,6 @@
+---
+- hosts: all
+  roles:
+    - extension
+    - utils
+    - docker

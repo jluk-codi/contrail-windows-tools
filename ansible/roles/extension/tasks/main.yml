@@ -1,0 +1,10 @@
+---
+- name: Copy vRouter installer to remote machines
+  win_copy:
+    src: vRouter.msi
+    dest: C:\Tmp\vRouter.msi
+
+- name: Installing vRouter
+  win_msi:
+    path: c:\Tmp\vRouter.msi
+    wait: true

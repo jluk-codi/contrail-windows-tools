@@ -1,0 +1,9 @@
+- name: Copy utils installer to remote machines
+  win_copy:
+    src: utilsMSI.msi
+    dest: c:\utilsMSI.msi
+
+- name: Installing utils
+  win_msi:
+    path: c:\utilsMSI.msi
+    wait: true
