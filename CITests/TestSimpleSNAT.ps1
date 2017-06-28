@@ -19,7 +19,7 @@ function Test-SimpleSNAT {
     )
 
 
-    function CreateMgmtSwitch {
+    function New-MgmtSwitch {
         Param (
             [Parameter(Mandatory=$true)]
             [System.Management.Automation.Runspaces.PSSession]
@@ -32,10 +32,11 @@ function Test-SimpleSNAT {
 
         Write-Host "Creating MGMT switch..."
         $oldSwitches = Invoke-Command -Session $Session -ScriptBlock {
-            Get-VMSwitch | ? Name -eq $Using:MgmtSwitchName
+            Get-VMSwitch | Where-Object Name -eq $Using:MgmtSwitchName
         }
         if ($oldSwitches) {
-            Throw "MGMT switch alredy exists!"
+            Write-Host "MGMT switch already exists. Won't create a new one."
+            return
         }
 
         $newVmSwitch = Invoke-Command -Session $Session -ScriptBlock {
@@ -49,7 +50,7 @@ function Test-SimpleSNAT {
     }
 
 
-    function ProvisionSNATVM {
+    function New-SNATVM {
         Param (
             [Parameter(Mandatory=$true)][System.Management.Automation.Runspaces.PSSession] $Session,
             [Parameter(Mandatory=$true)][string] $VmDirectory,
@@ -103,11 +104,11 @@ function Test-SimpleSNAT {
     $DOCKER_NETWORK = "testnet"
     $CONTAINER_GW = "10.0.0.1"
 
-    Prepare-CleanTestConfiguration -sess $session -adapter $PhysicalAdapterName -testConfiguration $testConfiguration
+    Restore-CleanTestConfiguration -sess $session -adapter $PhysicalAdapterName -testConfiguration $testConfiguration
 
-    CreateMgmtSwitch -Session $Session -MgmtSwitchName $SNAT_MGMT_SWITCH
+    New-MgmtSwitch -Session $Session -MgmtSwitchName $SNAT_MGMT_SWITCH
 
-    ProvisionSNATVM -Session $Session `
+    New-SNATVM -Session $Session `
         -VmDirectory $SNAT_VM_DIR -DiskPath $SNAT_DISK_PATH `
         -MgmtSwitchName $SNAT_MGMT_SWITCH `
         -VRouterSwitchName $VRouterSwitchName `
@@ -265,7 +266,7 @@ function Test-SimpleSNAT {
     Write-Host "Configure vRouter... DONE"
 }
 
-. .\PrepareCleanTestConfiguration.ps1
+. .\RestoreCleanTestConfiguration.ps1
 
 $vmSwitchName = "Layered Ethernet1"
 $forwardingExtensionName = "vRouter forwarding extension"
@@ -286,6 +287,6 @@ $testConfiguration = [pscustomobject] @{
 
 $session = New-PSSession -ComputerName DS-snat-test
 Copy-Item -ToSession $session  -Force `
-    -Path C:\Users\ds.CONTRAIL\Source\Repos\agent-tmp\controller\src\vnsw\opencontrail-vrouter-netns\opencontrail_vrouter_netns\* `
+    -Path C:\Users\mk\Source\Repos\controller\src\vnsw\opencontrail-vrouter-netns\opencontrail_vrouter_netns\* `
     -Destination C:\snat-test\
 Test-SimpleSNAT -Session $session -PhysicalAdapterName Ethernet1 -VRouterSwitchName $vmSwitchName -testConfiguration $testConfiguration

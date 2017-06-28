@@ -1,7 +1,7 @@
-function Configure-MPLSoGRE($sess1, $sess2, $adapter, $container1_id, $container2_id) {
+function Initialize-MPLSoGRE($sess1, $sess2, $adapter, $container1_id, $container2_id) {
     Write-Host "Getting MAC and ifName of VMs"
-    $res1 = Invoke-Command -Session $sess1 -ScriptBlock { Get-NetAdapter $Using:adapter | Select Name,ifName,MacAddress,ifIndex }
-    $res2 = Invoke-Command -Session $sess2 -ScriptBlock { Get-NetAdapter $Using:adapter | Select Name,ifName,MacAddress,ifIndex }
+    $res2 = Invoke-Command -Session $sess2 -ScriptBlock { Get-NetAdapter $Using:adapter | Select-Object Name,ifName,MacAddress,ifIndex }
+    $res1 = Invoke-Command -Session $sess1 -ScriptBlock { Get-NetAdapter $Using:adapter | Select-Object Name,ifName,MacAddress,ifIndex }
 
     $vm1_mac = $res1.MacAddress.Replace("-", ":").ToLower(); Write-Host $vm1_mac
     $vm2_mac = $res2.MacAddress.Replace("-", ":").ToLower(); Write-Host $vm2_mac
@@ -85,14 +85,14 @@ function Configure-MPLSoGRE($sess1, $sess2, $adapter, $container1_id, $container
 }
 
 function Test-MPLSoGRE-ICMP($sess1, $sess2, $adapter, $testConfiguration) {
-    Prepare-CleanTestConfiguration -sess $sess1 -adapter $adapter -testConfiguration $testConfiguration
-    Prepare-CleanTestConfiguration -sess $sess2 -adapter $adapter -testConfiguration $testConfiguration
+    Restore-CleanTestConfiguration -sess $sess1 -adapter $adapter -testConfiguration $testConfiguration
+    Restore-CleanTestConfiguration -sess $sess2 -adapter $adapter -testConfiguration $testConfiguration
 
     Write-Host "Running containers"
     $container1_id = Invoke-Command -Session $sess1 -ScriptBlock { docker run --network testnet -d microsoft/nanoserver ping -t localhost }; $container1_id
     $container2_id = Invoke-Command -Session $sess2 -ScriptBlock { docker run --network testnet -d microsoft/nanoserver ping -t localhost }; $container2_id
 
-    $ips = Configure-MPLSoGRE -sess1 $sess1 -sess2 $sess2 -adapter $adapter -container1_id $container1_id -container2_id $container2_id
+    $ips = Initialize-MPLSoGRE -sess1 $sess1 -sess2 $sess2 -adapter $adapter -container1_id $container1_id -container2_id $container2_id
     $container1_ip = $ips.container1
     $container2_ip = $ips.container2
 
@@ -120,7 +120,7 @@ function Test-MPLSoGRE-TCP($sess1, $sess2, $adapter, $testConfiguration) {
     $container1_id = Invoke-Command -Session $sess1 -ScriptBlock { docker run --network testnet -d iis-tcptest }; $container1_id
     $container2_id = Invoke-Command -Session $sess2 -ScriptBlock { docker run --network testnet -d microsoft/nanoserver ping -t localhost }; $container2_id
 
-    $ips = Configure-MPLSoGRE -sess1 $sess1 -sess2 $sess2 -adapter $adapter -container1_id $container1_id -container2_id $container2_id
+    $ips = Initialize-MPLSoGRE -sess1 $sess1 -sess2 $sess2 -adapter $adapter -container1_id $container1_id -container2_id $container2_id
     $server_ip = $ips.container1
 
     Write-Host "Invoking web request"
@@ -138,4 +138,6 @@ function Test-MPLSoGRE-TCP($sess1, $sess2, $adapter, $testConfiguration) {
         Write-Host "TCP test failed!"
         exit 1
     }
+
+    Write-Host "Success"
 }

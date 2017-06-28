@@ -1,5 +1,5 @@
 function Test-TCP ($sess, $adapter, $testConfiguration) {
-    Prepare-CleanTestConfiguration -sess $sess -adapter $adapter -testConfiguration $testConfiguration
+    Restore-CleanTestConfiguration -sess $sess -adapter $adapter -testConfiguration $testConfiguration
     
     Invoke-Command -Session $sess -ScriptBlock {
         Write-Host "Creating containers"

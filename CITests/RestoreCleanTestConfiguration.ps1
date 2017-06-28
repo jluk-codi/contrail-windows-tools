@@ -1,9 +1,9 @@
-function Prepare-CleanTestConfiguration ($sess, $adapter, $testConfiguration) {
+function Restore-CleanTestConfiguration ($sess, $adapter, $testConfiguration) {
     $forwardingExtensionName = $testConfiguration.forwardingExtensionName
     $vmSwitchName = $testConfiguration.vmSwitchName
     $dockerDriverCfg = $testConfiguration.dockerDriverCfg
     
-    Write-Host "Stopping Docker Driver"
+    Write-Host ($MyInvocation.MyCommand) ": Stopping Docker Driver"
     Invoke-Command -Session $sess -ScriptBlock {
         $proc = Get-Process contrail-windows-docker -ErrorAction SilentlyContinue
         if ($proc) {
@@ -12,7 +12,7 @@ function Prepare-CleanTestConfiguration ($sess, $adapter, $testConfiguration) {
     }
     Start-Sleep -s 3
     
-    Write-Host "Restarting Extension"
+    Write-Host ($MyInvocation.MyCommand) ": Restarting Extension"
     Invoke-Command -Session $sess -ScriptBlock {
         Disable-VMSwitchExtension -VMSwitchName $Using:vmSwitchName -Name $Using:forwardingExtensionName | Out-Null
     }
@@ -23,7 +23,7 @@ function Prepare-CleanTestConfiguration ($sess, $adapter, $testConfiguration) {
     }
     Start-Sleep -s 2
     
-    Write-Host "Enabling Docker Driver"
+    Write-Host ($MyInvocation.MyCommand) ": Enabling Docker Driver"
     Invoke-Command -Session $sess -ScriptBlock {
         Stop-Service docker
         Get-NetNat | Remove-NetNat -Confirm:$false
@@ -47,12 +47,12 @@ function Prepare-CleanTestConfiguration ($sess, $adapter, $testConfiguration) {
     }
     Start-Sleep -s 30
     
-    Write-Host "Checking services"
+    Write-Host ($MyInvocation.MyCommand) ": Checking services"
     $ext = Invoke-Command -Session $sess -ScriptBlock { 
         Get-VMSwitchExtension -VMSwitchName $Using:vmSwitchName -Name $Using:forwardingExtensionName 
     }
     if(($ext.Enabled -ne $true) -Or ($ext.Running -ne $true)) { 
-        Write-Host "Extension was not enabled or is not running. Test failed."
+        Write-Host ($MyInvocation.MyCommand) ": Extension was not enabled or is not running. Test failed."
         exit 1
     }
     
@@ -60,7 +60,7 @@ function Prepare-CleanTestConfiguration ($sess, $adapter, $testConfiguration) {
         Get-Process contrail-windows-docker -ErrorAction SilentlyContinue
     }
     if (-Not $ddrv) {
-        Write-Host "Docker driver was not enabled. Test failed."
+        Write-Host ($MyInvocation.MyCommand) ": Docker driver was not enabled. Test failed."
         exit 1
     }
     
@@ -71,7 +71,7 @@ function Prepare-CleanTestConfiguration ($sess, $adapter, $testConfiguration) {
         }
     }
     
-    Write-Host "Creating network"
+    Write-Host ($MyInvocation.MyCommand) ": Creating network"
     Invoke-Command -Session $sess -ScriptBlock {
         $os_tenant_name = ($Using:dockerDriverCfg).os_tenant_name
         docker network create --ipam-driver windows --driver Contrail -o tenant=$os_tenant_name -o network=testnet testnet
