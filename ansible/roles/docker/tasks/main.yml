@@ -1,0 +1,20 @@
+---
+- name: Copy docker installer on remote machine
+  win_copy:
+     src: InstallDocker.msi
+     dest: c:\InstallDocker.msi
+
+- name: Installing docker
+  win_msi:
+     path: c:\InstallDocker.msi
+     wait: true
+
+- name: Copy contrail docker driver installer on remote machine
+  win_copy:
+     src: installer.msi
+     dest: c:\installer.msi
+
+- name: Installing contrail docker driver
+  win_msi:
+     path: c:\installer.msi
+     wait: true
