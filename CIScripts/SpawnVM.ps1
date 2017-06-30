@@ -13,15 +13,15 @@ class VIServerAccessData {
 }
 
 function New-TestbedVMs {
-    Param ([Parameter(Mandatory = $true)] [string[]] $VMNames,
-           [Parameter(Mandatory = $true)] [bool] $InstallArtifacts,
-           [Parameter(Mandatory = $true)] [string] $PowerCLIScriptPath,
-           [Parameter(Mandatory = $true)] [VIServerAccessData] $VIServerAccessData,
-           [Parameter(Mandatory = $true)] [NewVMCreationSettings] $VMCreationSettings,
-           [Parameter(Mandatory = $true)] [System.Management.Automation.PSCredential] $VMCredentials,
-           [Parameter(Mandatory = $true)] [string] $ArtifactsDir,
-           [Parameter(Mandatory = $true)] [string] $DumpFilesLocation,
-           [Parameter(Mandatory = $true)] [string] $DumpFilesBaseName)
+    Param ([Parameter(Mandatory = $true, HelpMessage = "List of names of created VMs")] [string[]] $VMNames,
+           [Parameter(Mandatory = $true, HelpMessage = "Flag indicating if we should install all artifacts on spawned VMs")] [bool] $InstallArtifacts,
+           [Parameter(Mandatory = $true, HelpMessage = "Path to VMWare PowerCLI initialization script")] [string] $PowerCLIScriptPath,
+           [Parameter(Mandatory = $true, HelpMessage = "Access data for VIServer")] [VIServerAccessData] $VIServerAccessData,
+           [Parameter(Mandatory = $true, HelpMessage = "Settings required for creating new VM")] [NewVMCreationSettings] $VMCreationSettings,
+           [Parameter(Mandatory = $true, HelpMessage = "Credentials required to access created VMs")] [System.Management.Automation.PSCredential] $VMCredentials,
+           [Parameter(Mandatory = $true, HelpMessage = "Directory with artifacts collected from other jobs")] [string] $ArtifactsDir,
+           [Parameter(Mandatory = $true, HelpMessage = "Location of crash dump files")] [string] $DumpFilesLocation,
+           [Parameter(Mandatory = $true, HelpMessage = "Crash dump files base name (prefix)")] [string] $DumpFilesBaseName)
 
     function Initialize-VIServer {
         Param ([Parameter(Mandatory = $true)] [string] $PowerCLIScriptPath,
