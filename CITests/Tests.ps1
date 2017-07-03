@@ -2,3 +2,4 @@
 
 . .\MPLSoGRE.ps1
 . .\TCP.ps1
+. .\TestSimpleSNAT.ps1

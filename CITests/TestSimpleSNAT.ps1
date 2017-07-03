@@ -85,10 +85,73 @@ function Test-SimpleSNAT {
         }
     }
 
+    function Remove-SNATVM {
+        Param (
+            [Parameter(Mandatory=$true)][System.Management.Automation.Runspaces.PSSession] $Session,
+            [Parameter(Mandatory=$true)][string] $DiskPath,
+            [Parameter(Mandatory=$true)][string] $GUID
+        )
+
+        Write-Host "Run vrouter_hyperv.py to remove SNAT VM..."
+        $exitCode = Invoke-Command -Session $Session -ScriptBlock {
+            python C:\snat-test\vrouter_hyperv.py destroy `
+                --vhd_path $Using:DiskPath `
+                $Using:GUID `
+                $Using:GUID `
+                $Using:GUID | Out-Null
+            
+            $LASTEXITCODE
+        }
+
+        Write-Host "Run vrouter_hyperv.py to remove SNAT VM... exitCode = $exitCode;"
+        if ($exitCode -eq 0) {
+            Write-Host "Run vrouter_hyperv.py to remove SNAT VM... DONE"
+        } else {
+            Throw "Run vrouter_hyperv.py to remove SNAT VM... FAILED"
+        }
+    }
+
+    function Test-VMAShouldBeCleanedUp {
+        Param (
+            [Parameter(Mandatory=$true)][System.Management.Automation.Runspaces.PSSession] $Session,
+            [Parameter(Mandatory=$true)][string] $VmName
+        )
+
+        Write-Host "Checking if VM was cleaned up..."
+        $vm = Invoke-Command -Session $Session -ScriptBlock {
+            Get-VM $Using:VmName
+        }
+        if($vm -eq $null) {
+            Write-Host "SNAV VM was properly cleaned up! Test succeeded"
+        } else {
+            Throw "SNAT VM was not properly cleaned up! Test FAILED"
+        }
+    }
+
+    function Test-VHDXShouldBeCleanedUp {
+        Param (
+            [Parameter(Mandatory=$true)][System.Management.Automation.Runspaces.PSSession] $Session,
+            [Parameter(Mandatory=$true)][string] $DiskDir,
+            [Parameter(Mandatory=$true)][string] $GUID
+        )
+
+        Write-Host "Checking if VHDX was cleaned up..."
+        $vm = Invoke-Command -Session $Session -ScriptBlock {
+            Get-ChildItem $Using:DiskDir\*$Using:GUID*
+        }
+        if($vm -eq $null) {
+            Write-Host "SNAV VHDX was properly cleaned up! Test succeeded"
+        } else {
+            Throw "SNAT VHDX was not properly cleaned up! Test FAILED"
+        }
+    }
+
+
     # SNAT VM options
     $SNAT_MGMT_SWITCH = "snat-mgmt"
     #$SNAT_MGMT_ADAPTER = $SNAT_MGMT_SWITCH
-    $SNAT_DISK_PATH = "C:\snat-vm-image\snat-vm-image.vhdx"
+    $SNAT_DISK_DIR = "C:\snat-vm-image"
+    $SNAT_DISK_PATH = $SNAT_DISK_DIR + "\snat-vm-image.vhdx"
     $SNAT_VM_DIR = "C:\snat-vm"
 
     # Some random GUID for vrouter_hyperv.py
@@ -264,6 +327,16 @@ function Test-SimpleSNAT {
         #nh.exe --create $Using:BroadcastNh --vrf 1 --type 6 --cen --cni $Using:ContainerNh --cni $Using:SNATLeftNh
     }
     Write-Host "Configure vRouter... DONE"
+
+    # TODO: Test-ShouldBeAbleToPingEndhostFromContainer -Container1
+    # TODO: Test-ShouldBeAbleToPingEndhostFromContainer -DifferentContainerInSameSubnet
+
+    Remove-SNATVM -Session $Session `
+        -DiskPath $SNAT_DISK_PATH `
+        -GUID $SNAT_GUID
+
+    Test-VMAShouldBeCleanedUp -VMName $SNAT_VM_NAME -Session $Session
+    Test-VHDXShouldBeCleanedUp -GUID $SNAT_GUID -DiskDir $SNAT_DISK_DIR -Session $Session
 }
 
 . .\RestoreCleanTestConfiguration.ps1
@@ -285,7 +358,7 @@ $testConfiguration = [pscustomobject] @{
     vmSwitchName = $vmSwitchName
 }
 
-$session = New-PSSession -ComputerName DS-snat-test
+$session = New-PSSession -ComputerName MK-snat
 Copy-Item -ToSession $session  -Force `
     -Path C:\Users\mk\Source\Repos\controller\src\vnsw\opencontrail-vrouter-netns\opencontrail_vrouter_netns\* `
     -Destination C:\snat-test\

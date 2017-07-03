@@ -74,6 +74,6 @@ function Restore-CleanTestConfiguration ($sess, $adapter, $testConfiguration) {
     Write-Host ($MyInvocation.MyCommand) ": Creating network"
     Invoke-Command -Session $sess -ScriptBlock {
         $os_tenant_name = ($Using:dockerDriverCfg).os_tenant_name
-        docker network create --ipam-driver windows --driver Contrail -o tenant=$os_tenant_name -o network=testnet testnet
+        docker network create --ipam-driver windows --driver Contrail -o tenant=$os_tenant_name -o network=testnet testnet | Out-Null
     }
 }

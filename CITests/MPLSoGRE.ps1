@@ -1,7 +1,7 @@
 function Initialize-MPLSoGRE($sess1, $sess2, $adapter, $container1_id, $container2_id) {
     Write-Host "Getting MAC and ifName of VMs"
-    $res2 = Invoke-Command -Session $sess2 -ScriptBlock { Get-NetAdapter $Using:adapter | Select-Object Name,ifName,MacAddress,ifIndex }
     $res1 = Invoke-Command -Session $sess1 -ScriptBlock { Get-NetAdapter $Using:adapter | Select-Object Name,ifName,MacAddress,ifIndex }
+    $res2 = Invoke-Command -Session $sess2 -ScriptBlock { Get-NetAdapter $Using:adapter | Select-Object Name,ifName,MacAddress,ifIndex }
 
     $vm1_mac = $res1.MacAddress.Replace("-", ":").ToLower(); Write-Host $vm1_mac
     $vm2_mac = $res2.MacAddress.Replace("-", ":").ToLower(); Write-Host $vm2_mac
