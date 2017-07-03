@@ -331,6 +331,15 @@ function Test-SimpleSNAT {
     # TODO: Test-ShouldBeAbleToPingEndhostFromContainer -Container1
     # TODO: Test-ShouldBeAbleToPingEndhostFromContainer -DifferentContainerInSameSubnet
 
+    $Res = Invoke-Command -Session $Session -ScriptBlock {
+        docker exec $Using:Container["Id"] ping 10.7.3.10 | Write-Host
+        $LASTEXITCODE
+    }
+    if ($Res -ne 0) {
+        Write-Host "SNAT tet failed"
+        exit 1
+    }
+
     Remove-SNATVM -Session $Session `
         -DiskPath $SNAT_DISK_PATH `
         -GUID $SNAT_GUID
