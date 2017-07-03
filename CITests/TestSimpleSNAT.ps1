@@ -57,23 +57,28 @@ function Test-SimpleSNAT {
             [Parameter(Mandatory=$true)][string] $DiskPath,
             [Parameter(Mandatory=$true)][string] $MgmtSwitchName,
             [Parameter(Mandatory=$true)][string] $VRouterSwitchName,
-            [Parameter(Mandatory=$true)][string] $GatewayIP,
+            [Parameter(Mandatory=$true)][string] $RightGW,
+            [Parameter(Mandatory=$true)][string] $LeftGW,
             [Parameter(Mandatory=$true)][string] $GUID
         )
 
         Write-Host "Run vrouter_hyperv.py to provision SNAT VM..."
-        $exitCode = Invoke-Command -Session $Session -ScriptBlock {
+        $stdout = Invoke-Command -Session $Session -ScriptBlock {
             # TODO(sodar): Add from _gw_ to _veth_ 
             python C:\snat-test\vrouter_hyperv.py create `
                 --vm_location $Using:VmDirectory `
                 --vhd_path $Using:DiskPath `
                 --mgmt_vswitch_name $Using:MgmtSwitchName `
                 --vrouter_vswitch_name $Using:VRouterSwitchName `
-                --gw-ip $Using:GatewayIP `
+                --right-gw-cidr $Using:RightGW/24 `
+                --left-gw-cidr $Using:LeftGW/24 `
                 $Using:GUID `
                 $Using:GUID `
-                $Using:GUID | Out-Null
-            
+                $Using:GUID
+        }
+        Write-Host $stdout
+
+        $exitCode = Invoke-Command -Session $Session -ScriptBlock {
             $LASTEXITCODE
         }
 
@@ -175,7 +180,8 @@ function Test-SimpleSNAT {
         -VmDirectory $SNAT_VM_DIR -DiskPath $SNAT_DISK_PATH `
         -MgmtSwitchName $SNAT_MGMT_SWITCH `
         -VRouterSwitchName $VRouterSwitchName `
-        -GatewayIP $SNAT_GATEWAY_IP `
+        -RightGW $SNAT_GATEWAY_IP `
+        -LeftGW $CONTAINER_GW `
         -GUID $SNAT_GUID
 
 
