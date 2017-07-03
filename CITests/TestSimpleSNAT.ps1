@@ -59,12 +59,13 @@ function Test-SimpleSNAT {
             [Parameter(Mandatory=$true)][string] $VRouterSwitchName,
             [Parameter(Mandatory=$true)][string] $RightGW,
             [Parameter(Mandatory=$true)][string] $LeftGW,
+            [Parameter(Mandatory=$true)][string] $ForwardingMAC,
             [Parameter(Mandatory=$true)][string] $GUID
         )
 
+            # TODO: Remove `forwarding-mac` when Agent is functional
         Write-Host "Run vrouter_hyperv.py to provision SNAT VM..."
-        $stdout = Invoke-Command -Session $Session -ScriptBlock {
-            # TODO(sodar): Add from _gw_ to _veth_ 
+        $exitCode = Invoke-Command -Session $Session -ScriptBlock {
             python C:\snat-test\vrouter_hyperv.py create `
                 --vm_location $Using:VmDirectory `
                 --vhd_path $Using:DiskPath `
@@ -72,6 +73,7 @@ function Test-SimpleSNAT {
                 --vrouter_vswitch_name $Using:VRouterSwitchName `
                 --right-gw-cidr $Using:RightGW/24 `
                 --left-gw-cidr $Using:LeftGW/24 `
+                --forwarding-mac $Using:ForwardingMAC `
                 $Using:GUID `
                 $Using:GUID `
                 $Using:GUID
@@ -166,22 +168,46 @@ function Test-SimpleSNAT {
     $SNAT_LEFT_NAME = "int-$SNAT_GUID".Substring(0, $NAME_LEN)
     $SNAT_RIGHT_NAME = "gw-$SNAT_GUID".Substring(0, $NAME_LEN)
     $SNAT_VETH_NAME = "veth-$SNAT_GUID".Substring(0, $NAME_LEN)
-    $SNAT_GATEWAY_IP = "10.7.3.200"
 
-    # Container config
-    $DOCKER_NETWORK = "testnet"
     $CONTAINER_GW = "10.0.0.1"
+    $SNAT_GATEWAY_IP = "10.7.3.200"
+    $SNAT_VETH_IP = "10.7.3.210"
+
+    $DOCKER_NETWORK = "testnet"
 
     Restore-CleanTestConfiguration -sess $session -adapter $PhysicalAdapterName -testConfiguration $testConfiguration
 
     New-MgmtSwitch -Session $Session -MgmtSwitchName $SNAT_MGMT_SWITCH
 
+    Write-Host "Setting up veth for forwarding..."
+    $SNATVeth = Invoke-Command -Session $Session -ScriptBlock {
+        Add-VMNetworkAdapter -ManagementOS -SwitchName $Using:VRouterSwitchName -Name $Using:SNAT_VETH_NAME | Out-Null
+
+        $vmAdapter = Get-VMNetworkAdapter -ManagementOS | Where-Object Name -eq $Using:SNAT_VETH_NAME
+        $macAddress = $vmAdapter.MacAddress -replace '..(?!$)', '$&-'
+
+        $netAdapter = Get-NetAdapter | Where-Object Name -match $Using:SNAT_VETH_NAME
+        $netAdapter | New-NetIPAddress -IPAddress $Using:SNAT_VETH_IP | Out-Null
+
+        @{ `
+            "Name" = $vmAdapter.Name; `
+            "MacAddressDashed" = $macAddress; `
+            "MacAddressColons" = $macAddress.replace("-", ":"); `
+            "IfIndex" = $netAdapter.ifIndex; `
+        }
+    }
+    $SNATVeth.Set_Item("vif", 104)
+    $SNATVeth.Set_Item("nh", 104)
+    Write-Host "Setting up veth for forwarding... DONE"
+
+    # TODO: Remove `ForwardingMAC` when Agent is functional
     New-SNATVM -Session $Session `
         -VmDirectory $SNAT_VM_DIR -DiskPath $SNAT_DISK_PATH `
         -MgmtSwitchName $SNAT_MGMT_SWITCH `
         -VRouterSwitchName $VRouterSwitchName `
         -RightGW $SNAT_GATEWAY_IP `
         -LeftGW $CONTAINER_GW `
+        -ForwardingMAC $SNATVeth["MacAddressColons"] `
         -GUID $SNAT_GUID
 
 
@@ -251,22 +277,19 @@ function Test-SimpleSNAT {
     Write-Host "Extracting VM right adapter data... DONE"
 
 
-    Write-Host "Setting up veth for forwarding..."
-    $SNATVeth = Invoke-Command -Session $Session -ScriptBlock {
-        Add-VMNetworkAdapter -ManagementOS -SwitchName $Using:VRouterSwitchName -Name $Using:SNAT_VETH_NAME | Out-Null
-
-        $adapter = Get-VMNetworkAdapter -ManagementOS | Where-Object Name -eq $Using:SNAT_VETH_NAME
-        $macAddress = $adapter.MacAddress -replace '..(?!$)', '$&-'
-
-        @{ `
-            "Name" = $adapter.Name; `
-            "MacAddressDashed" = $macAddress; `
-            "MacAddressColons" = $macAddress.replace("-", ":"); `
-        }
+    Write-Host "Setting up routing rules..."
+    $routeExitCode = Invoke-Command -Session $Session -ScriptBlock {
+        route add $Using:SNAT_GATEWAY_IP mask 255.255.255.255 $Using:SNAT_VETH_IP "if" $Using:SNATVeth["IfIndex"] | Out-Null
     }
-    $SNATVeth.Set_Item("vif", 104)
-    $SNATVeth.Set_Item("nh", 104)
-    Write-Host "Setting up veth for forwarding... DONE"
+    Write-Host "Setting up routing rules... exitCode = $routeExitCode"
+    Write-Host "Setting up routing rules... DONE"
+
+
+    Write-Host "Setting up ARP rule for GW-veth forwarding..."
+    Invoke-Command -Session $Session -ScriptBlock {
+        netsh interface ipv4 add neighbor $Using:SNATVeth["IfIndex"] $Using:SNAT_GATEWAY_IP $Using:SnatRight["MacAddressDashed"]
+    }
+    Write-Host "Setting up ARP rule for GW-veth forwarding... DONE"
 
 
     Write-Host "Enable forwarding on the HNSTransparent adapter..."
@@ -274,6 +297,21 @@ function Test-SimpleSNAT {
         netsh interface ipv4 set interface $Using:HNSAdapter["IfIndex"] forwarding="enabled"
     }
     Write-Host "Enable forwarding on the HNSTransparent adapter... DONE"
+
+
+    Write-Host "Installing Posh-SSH..."
+    Install-Module -Confirm:$false -Force -Scope CurrentUser PoSH-SSH
+    Write-Host "Installing Posh-SSH... DONE"
+
+
+    Write-Host "Configure endhost..."
+    Invoke-Command -Session $Session -ScriptBlock {
+        $endhostPassword = ConvertTo-SecureString "ubuntu" -AsPlainText -Force
+        $endhostCredentials = New-Object System.Management.Automation.PSCredential("ubuntu", $endhostPassword)
+        $endhostSession = New-SSHSession -IPAddress 10.7.3.10 -Credential $endhostCredentials -AcceptKey
+        Invoke-SSHCommand -Index $endhostSession.Index -Command "sudo arp -i eth0 -s ${SNAT_GATEWAY_IP} ${PhysicalAdapter["MacAddressDashed"]}" | Out-Null
+    }
+    Write-Host "Configure endhost... DONE"
 
 
     Write-Host "Start and configure test container..."
@@ -284,8 +322,6 @@ function Test-SimpleSNAT {
         $AdapterName = $AdapterName -replace 'vEthernet \((.*)\)', '$1'
         $MacAddress = $(docker exec $Id powershell "Get-NetAdapter | Select -ExpandProperty MacAddress")
         $IfIndex = $(docker exec $Id powershell "Get-NetAdapter | Select -ExpandProperty IfIndex")
-
-        docker exec $Id netsh interface ipv4 add neighbors $IfIndex $Using:CONTAINER_GW $Using:SNATLeft["MacAddressDashed"] | Out-Null
 
         @{ `
             "Id" = $Id; `
@@ -300,6 +336,12 @@ function Test-SimpleSNAT {
     Write-Host "Start and configure test container... DONE"
 
 
+    $InternalVrf = 1
+    $ExternalVrf = 2
+
+    $BroadcastInternalNh = 110
+    $BroadcastExternalNh = 111
+
     Write-Host "Configure vRouter..."
     Invoke-Command -Session $Session -ScriptBlock {
         $Env:PATH = "C:\Utils\;$Env:PATH"
@@ -309,49 +351,55 @@ function Test-SimpleSNAT {
         vif.exe --add HNSTransparent --mac $Using:PhysicalAdapter["MacAddressColons"] --vrf 0 --type vhost --xconnect $Using:PhysicalAdapter["IfName"]
 
         # Register container's NIC as vif
-        vif.exe --add $Using:Container["AdapterName"] --mac $Using:Container["MacAddressColons"] --vrf 1 --type virtual --vif $Using:Container["vif"]
-        nh.exe --create $Using:Container["nh"] --vrf 1 --type 2 --el2 --oif $Using:Container["vif"]
-        rt.exe -c -v 1 -f 1 -e $Using:Container["MacAddressColons"] -n $Using:Container["nh"]
+        vif.exe --add $Using:Container["AdapterName"] --mac $Using:Container["MacAddressColons"] --vrf $Using:InternalVrf --type virtual --vif $Using:Container["vif"]
+        nh.exe --create $Using:Container["nh"] --vrf $Using:InternalVrf --type 2 --el2 --oif $Using:Container["vif"]
+        rt.exe -c -v $Using:InternalVrf -f 1 -e $Using:Container["MacAddressColons"] -n $Using:Container["nh"]
 
         # Register SNAT's left adapter ("int")
-        vif.exe --add $Using:SNATLeft["Name"] --mac $Using:SNATLeft["MacAddressColons"] --vrf 1 --type virtual --vif $Using:SNATLeft["vif"]
-        nh.exe --create $Using:SNATLeft["nh"] --vrf 1 --type 2 --el2 --oif $Using:SNATLeft["vif"]
-        rt.exe -c -v 1 -f 1 -e $Using:SNATLeft["MacAddressColons"] -n $Using:SNATLeft["nh"]
+        vif.exe --add $Using:SNATLeft["Name"] --mac $Using:SNATLeft["MacAddressColons"] --vrf $Using:InternalVrf --type virtual --vif $Using:SNATLeft["vif"]
+        nh.exe --create $Using:SNATLeft["nh"] --vrf $Using:InternalVrf --type 2 --el2 --oif $Using:SNATLeft["vif"]
+        rt.exe -c -v $Using:InternalVrf -f 1 -e $Using:SNATLeft["MacAddressColons"] -n $Using:SNATLeft["nh"]
 
         # Register SNAT's right adapter ("gw")
-        vif.exe --add $Using:SNATRight["Name"] --mac $Using:SNATRight["MacAddressColons"] --vrf 0 --type virtual --vif $Using:SNATRight["vif"]
-        nh.exe --create $Using:SNATRight["nh"] --vrf 0 --type 2 --el2 --oif $Using:SNATRight["vif"]
-        rt.exe -c -v 0 -f 1 -e $Using:SNATRight["MacAddressColons"] -n $Using:SNATRight["nh"]
+        vif.exe --add $Using:SNATRight["Name"] --mac $Using:SNATRight["MacAddressColons"] --vrf $Using:ExternalVrf --type virtual --vif $Using:SNATRight["vif"]
+        nh.exe --create $Using:SNATRight["nh"] --vrf $Using:ExternalVrf --type 2 --el2 --oif $Using:SNATRight["vif"]
+        rt.exe -c -v $Using:ExternalVrf -f 1 -e $Using:SNATRight["MacAddressColons"] -n $Using:SNATRight["nh"]
 
         # Register SNAT''s additional adapter ("veth")
-        vif.exe --add $Using:SNATVeth["Name"] --mac $Using:SNATVeth["MacAddressColons"] --vrf 0 --type virtual --vif $Using:SNATVeth["vif"]
-        nh.exe --create $Using:SNATVeth["nh"] --vrf 0 --type 2 --el2 --oif $Using:SNATVeth["vif"]
-        rt.exe -c -v 0 -f 1 -e $Using:SNATVeth["MacAddressColons"] -n $Using:SNATVeth["nh"]
+        vif.exe --add $Using:SNATVeth["Name"] --mac $Using:SNATVeth["MacAddressColons"] --vrf $Using:ExternalVrf --type virtual --vif $Using:SNATVeth["vif"]
+        nh.exe --create $Using:SNATVeth["nh"] --vrf $Using:ExternalVrf --type 2 --el2 --oif $Using:SNATVeth["vif"]
+        rt.exe -c -v $Using:ExternalVrf -f 1 -e $Using:SNATVeth["MacAddressColons"] -n $Using:SNATVeth["nh"]
 
-        # Broadcast NH
-        # TODO: Is this broadcast nexthop really needed?
-        #nh.exe --create $Using:BroadcastNh --vrf 1 --type 6 --cen --cni $Using:ContainerNh --cni $Using:SNATLeftNh
+        # Broadcast NH (internal network)
+        nh.exe --create $Using:BroadcastInternalNh --vrf $Using:InternalVrf --type 6 --cen --cni $Using:Container["nh"] --cni $Using:SNATLeft["nh"]
+        rt.exe -c -v $Using:InternalVrf -f 1 -e ff:ff:ff:ff:ff:ff -n $Using:BroadcastInternalNh
+
+        # Broadcast NH (external network)
+        nh.exe --create $Using:BroadcastExternalNh --vrf $Using:ExternalVrf --type 6 --cen --cni $Using:SNATRight["nh"] --cni $Using:SNATVeth["nh"]
+        rt.exe -c -v $Using:ExternalVrf -f 1 -e ff:ff:ff:ff:ff:ff -n $Using:BroadcastExternalNh
     }
     Write-Host "Configure vRouter... DONE"
+
+    # TODO: [host   ] arp -i veth -s 10.7.3.200 MAC
 
     # TODO: Test-ShouldBeAbleToPingEndhostFromContainer -Container1
     # TODO: Test-ShouldBeAbleToPingEndhostFromContainer -DifferentContainerInSameSubnet
 
-    $Res = Invoke-Command -Session $Session -ScriptBlock {
-        docker exec $Using:Container["Id"] ping 10.7.3.10 | Write-Host
-        $LASTEXITCODE
-    }
-    if ($Res -ne 0) {
-        Write-Host "SNAT tet failed"
-        exit 1
-    }
+    #$Res = Invoke-Command -Session $Session -ScriptBlock {
+    #    docker exec $Using:Container["Id"] ping 10.7.3.10 | Write-Host
+    #    $LASTEXITCODE
+    #}
+    #if ($Res -ne 0) {
+    #    Write-Host "SNAT test failed"
+    #    exit 1
+    #}
 
-    Remove-SNATVM -Session $Session `
-        -DiskPath $SNAT_DISK_PATH `
-        -GUID $SNAT_GUID
+    #Remove-SNATVM -Session $Session `
+    #    -DiskPath $SNAT_DISK_PATH `
+    #    -GUID $SNAT_GUID
 
-    Test-VMAShouldBeCleanedUp -VMName $SNAT_VM_NAME -Session $Session
-    Test-VHDXShouldBeCleanedUp -GUID $SNAT_GUID -DiskDir $SNAT_DISK_DIR -Session $Session
+    #Test-VMAShouldBeCleanedUp -VMName $SNAT_VM_NAME -Session $Session
+    #Test-VHDXShouldBeCleanedUp -GUID $SNAT_GUID -DiskDir $SNAT_DISK_DIR -Session $Session
 }
 
 . .\RestoreCleanTestConfiguration.ps1
@@ -373,8 +421,9 @@ $testConfiguration = [pscustomobject] @{
     vmSwitchName = $vmSwitchName
 }
 
-$session = New-PSSession -ComputerName MK-snat
+$creds = Get-Credential
+$session = New-PSSession -ComputerName "10.7.0.67" -Credential $creds
 Copy-Item -ToSession $session  -Force `
-    -Path C:\Users\mk\Source\Repos\controller\src\vnsw\opencontrail-vrouter-netns\opencontrail_vrouter_netns\* `
+    -Path C:\Users\ds.CONTRAIL\Source\Repos\agent-tmp\controller\src\vnsw\opencontrail-vrouter-netns\opencontrail_vrouter_netns\* `
     -Destination C:\snat-test\
 Test-SimpleSNAT -Session $session -PhysicalAdapterName Ethernet1 -VRouterSwitchName $vmSwitchName -testConfiguration $testConfiguration
