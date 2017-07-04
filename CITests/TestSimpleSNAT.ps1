@@ -50,6 +50,40 @@ function Test-SimpleSNAT {
     }
 
 
+    function New-RoutingInterface {
+        Param (
+            [Parameter(Mandatory=$true)][System.Management.Automation.Runspaces.PSSession] $Session,
+            [Parameter(Mandatory=$true)][string]$SwitchName,
+            [Parameter(Mandatory=$true)][string]$Name,
+            [Parameter(Mandatory=$true)][ipaddress]$IPAddress
+        )
+
+        Write-Host "Setting up veth for forwarding..."
+        $SNATVeth = Invoke-Command -Session $Session -ScriptBlock {
+            Add-VMNetworkAdapter -ManagementOS -SwitchName $Using:SwitchName -Name $Using:Name | Out-Null
+
+            $vmAdapter = Get-VMNetworkAdapter -ManagementOS | Where-Object Name -eq $Using:Name
+            $macAddress = $vmAdapter.MacAddress -replace '..(?!$)', '$&-'
+
+            $netAdapter = Get-NetAdapter | Where-Object Name -match $Using:Name
+            $netAdapter | Remove-NetIPAddress -Confirm:$false | Out-Null
+            $netAdapter | New-NetIPAddress -IPAddress $Using:IPAddress | Out-Null
+
+            @{ `
+                "Name" = $vmAdapter.Name; `
+                "MacAddressDashed" = $macAddress; `
+                "MacAddressColons" = $macAddress.replace("-", ":"); `
+                "IfIndex" = $netAdapter.ifIndex; `
+            }
+        }
+        $SNATVeth.Set_Item("vif", 104)
+        $SNATVeth.Set_Item("nh", 104)
+        Write-Host "Setting up veth for forwarding... DONE"
+
+        $SNATVeth
+    }
+
+
     function New-SNATVM {
         Param (
             [Parameter(Mandatory=$true)][System.Management.Automation.Runspaces.PSSession] $Session,
@@ -63,7 +97,7 @@ function Test-SimpleSNAT {
             [Parameter(Mandatory=$true)][string] $GUID
         )
 
-            # TODO: Remove `forwarding-mac` when Agent is functional
+        # TODO: Remove `forwarding-mac` when Agent is functional
         Write-Host "Run vrouter_hyperv.py to provision SNAT VM..."
         $exitCode = Invoke-Command -Session $Session -ScriptBlock {
             python C:\snat-test\vrouter_hyperv.py create `
@@ -179,26 +213,10 @@ function Test-SimpleSNAT {
 
     New-MgmtSwitch -Session $Session -MgmtSwitchName $SNAT_MGMT_SWITCH
 
-    Write-Host "Setting up veth for forwarding..."
-    $SNATVeth = Invoke-Command -Session $Session -ScriptBlock {
-        Add-VMNetworkAdapter -ManagementOS -SwitchName $Using:VRouterSwitchName -Name $Using:SNAT_VETH_NAME | Out-Null
-
-        $vmAdapter = Get-VMNetworkAdapter -ManagementOS | Where-Object Name -eq $Using:SNAT_VETH_NAME
-        $macAddress = $vmAdapter.MacAddress -replace '..(?!$)', '$&-'
-
-        $netAdapter = Get-NetAdapter | Where-Object Name -match $Using:SNAT_VETH_NAME
-        $netAdapter | New-NetIPAddress -IPAddress $Using:SNAT_VETH_IP | Out-Null
-
-        @{ `
-            "Name" = $vmAdapter.Name; `
-            "MacAddressDashed" = $macAddress; `
-            "MacAddressColons" = $macAddress.replace("-", ":"); `
-            "IfIndex" = $netAdapter.ifIndex; `
-        }
-    }
-    $SNATVeth.Set_Item("vif", 104)
-    $SNATVeth.Set_Item("nh", 104)
-    Write-Host "Setting up veth for forwarding... DONE"
+    $SNATVeth = New-RoutingInterface -Session $Session `
+        -SwitchName $VRouterSwitchName `
+        -Name $SNAT_VETH_NAME `
+        -IPAddress $SNAT_VETH_IP
 
     # TODO: Remove `ForwardingMAC` when Agent is functional
     New-SNATVM -Session $Session `
@@ -294,24 +312,9 @@ function Test-SimpleSNAT {
 
     Write-Host "Enable forwarding on the HNSTransparent adapter..."
     Invoke-Command -Session $Session -ScriptBlock {
-        netsh interface ipv4 set interface $Using:HNSAdapter["IfIndex"] forwarding="enabled"
+        netsh interface ipv4 set interface $Using:HNSAdapter["IfIndex"] forwarding="enabled" | Out-Null
     }
     Write-Host "Enable forwarding on the HNSTransparent adapter... DONE"
-
-
-    Write-Host "Installing Posh-SSH..."
-    Install-Module -Confirm:$false -Force -Scope CurrentUser PoSH-SSH
-    Write-Host "Installing Posh-SSH... DONE"
-
-
-    Write-Host "Configure endhost..."
-    Invoke-Command -Session $Session -ScriptBlock {
-        $endhostPassword = ConvertTo-SecureString "ubuntu" -AsPlainText -Force
-        $endhostCredentials = New-Object System.Management.Automation.PSCredential("ubuntu", $endhostPassword)
-        $endhostSession = New-SSHSession -IPAddress 10.7.3.10 -Credential $endhostCredentials -AcceptKey
-        Invoke-SSHCommand -Index $endhostSession.Index -Command "sudo arp -i eth0 -s ${SNAT_GATEWAY_IP} ${PhysicalAdapter["MacAddressDashed"]}" | Out-Null
-    }
-    Write-Host "Configure endhost... DONE"
 
 
     Write-Host "Start and configure test container..."
@@ -380,50 +383,41 @@ function Test-SimpleSNAT {
     }
     Write-Host "Configure vRouter... DONE"
 
-    # TODO: [host   ] arp -i veth -s 10.7.3.200 MAC
+    Write-Host "Installing Posh-SSH..."
+    Invoke-Command -Session $Session -ScriptBlock {
+        Install-Module -Repository PSGallery -Force -Confirm:$false PoSH-SSH
+    }
+    Write-Host "Installing Posh-SSH... DONE"
 
-    # TODO: Test-ShouldBeAbleToPingEndhostFromContainer -Container1
-    # TODO: Test-ShouldBeAbleToPingEndhostFromContainer -DifferentContainerInSameSubnet
 
-    #$Res = Invoke-Command -Session $Session -ScriptBlock {
-    #    docker exec $Using:Container["Id"] ping 10.7.3.10 | Write-Host
-    #    $LASTEXITCODE
-    #}
-    #if ($Res -ne 0) {
-    #    Write-Host "SNAT test failed"
-    #    exit 1
-    #}
+    Write-Host "Configure endhost..."
+    $physicalMAC = $PhysicalAdapter["MacAddressColons"]
 
-    #Remove-SNATVM -Session $Session `
-    #    -DiskPath $SNAT_DISK_PATH `
-    #    -GUID $SNAT_GUID
+    $username = "ubuntu"
+    $password = "ubuntu"
 
-    #Test-VMAShouldBeCleanedUp -VMName $SNAT_VM_NAME -Session $Session
-    #Test-VHDXShouldBeCleanedUp -GUID $SNAT_GUID -DiskDir $SNAT_DISK_DIR -Session $Session
+    $endhostPassword = ConvertTo-SecureString $password -AsPlainText -Force
+    $endhostCredentials = New-Object System.Management.Automation.PSCredential($username, $endhostPassword)
+    Invoke-Command -Session $Session -ScriptBlock {
+        $endhostSession = New-SSHSession -IPAddress 10.7.3.10 -Credential $Using:endhostCredentials -AcceptKey
+        Invoke-SSHCommand -SessionId $endhostSession.SessionId `
+            -Command "echo $Using:password | sudo -S arp -i eth0 -s $Using:SNAT_GATEWAY_IP $Using:physicalMAC" | Out-Null
+    }
+    Write-Host "Configure endhost... DONE"
+
+    $Res = Invoke-Command -Session $Session -ScriptBlock {
+        docker exec $Using:Container["Id"] ping 10.7.3.10 | Write-Host
+        $LASTEXITCODE
+    }
+    if ($Res -ne 0) {
+        Write-Host "SNAT test failed"
+        exit 1
+    }
+
+    Remove-SNATVM -Session $Session `
+        -DiskPath $SNAT_DISK_PATH `
+        -GUID $SNAT_GUID
+
+    Test-VMAShouldBeCleanedUp -VMName $SNAT_VM_NAME -Session $Session
+    Test-VHDXShouldBeCleanedUp -GUID $SNAT_GUID -DiskDir $SNAT_DISK_DIR -Session $Session
 }
-
-. .\RestoreCleanTestConfiguration.ps1
-
-$vmSwitchName = "Layered Ethernet1"
-$forwardingExtensionName = "vRouter forwarding extension"
-
-$ddrv_cfg = [pscustomobject] @{
-    os_username = "admin"
-    os_password = "secret123"
-    os_auth_url = "http://10.7.0.54:5000/v2.0"
-    os_controller_ip = "10.7.0.54"
-    os_tenant_name = "admin"
-}
-
-$testConfiguration = [pscustomobject] @{
-    dockerDriverCfg = $ddrv_cfg
-    forwardingExtensionName = $forwardingExtensionName
-    vmSwitchName = $vmSwitchName
-}
-
-$creds = Get-Credential
-$session = New-PSSession -ComputerName "10.7.0.67" -Credential $creds
-Copy-Item -ToSession $session  -Force `
-    -Path C:\Users\ds.CONTRAIL\Source\Repos\agent-tmp\controller\src\vnsw\opencontrail-vrouter-netns\opencontrail_vrouter_netns\* `
-    -Destination C:\snat-test\
-Test-SimpleSNAT -Session $session -PhysicalAdapterName Ethernet1 -VRouterSwitchName $vmSwitchName -testConfiguration $testConfiguration

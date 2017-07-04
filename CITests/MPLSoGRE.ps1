@@ -113,8 +113,8 @@ function Test-MPLSoGRE-ICMP($sess1, $sess2, $adapter, $testConfiguration) {
 }
 
 function Test-MPLSoGRE-TCP($sess1, $sess2, $adapter, $testConfiguration) {
-    Prepare-CleanTestConfiguration -sess $sess1 -adapter $adapter -testConfiguration $testConfiguration
-    Prepare-CleanTestConfiguration -sess $sess2 -adapter $adapter -testConfiguration $testConfiguration
+    Restore-CleanTestConfiguration -sess $sess1 -adapter $adapter -testConfiguration $testConfiguration
+    Restore-CleanTestConfiguration -sess $sess2 -adapter $adapter -testConfiguration $testConfiguration
 
     Write-Host "Running containers"
     $container1_id = Invoke-Command -Session $sess1 -ScriptBlock { docker run --network testnet -d iis-tcptest }; $container1_id
