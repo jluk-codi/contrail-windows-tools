@@ -13,6 +13,7 @@ $ErrorActionPreference = "Stop"
 . $PSScriptRoot\SpawnVM.ps1
 
 $PowerCLIScriptPath = $Env:POWER_CLI_SCRIPT_PATH
+$MaxWaitVMMinutes = $Env:MAX_WAIT_VM_MINUTES
 
 $VIServerAccessData = [VIServerAccessData] @{
     Username = $Env:VISERVER_USERNAME;
@@ -49,7 +50,7 @@ $VMNames.ForEach({ Write-Host $_ })
 
 $Sessions = New-TestbedVMs -VMNames $VMNames -InstallArtifacts $true -PowerCLIScriptPath $PowerCLIScriptPath `
     -VIServerAccessData $VIServerAccessData -VMCreationSettings $VMCreationSettings -VMCredentials $VMCredentials `
-    -ArtifactsDir $ArtifactsDir -DumpFilesLocation $DumpFilesLocation -DumpFilesBaseName $DumpFilesBaseName
+    -ArtifactsDir $ArtifactsDir -DumpFilesLocation $DumpFilesLocation -DumpFilesBaseName $DumpFilesBaseName -MaxWaitVMMinutes $MaxWaitVMMinutes
 
 Write-Host "Started Testbeds:"
 $Sessions.ForEach({ Write-Host $_.ComputerName })

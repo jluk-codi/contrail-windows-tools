@@ -21,7 +21,8 @@ function New-TestbedVMs {
            [Parameter(Mandatory = $true, HelpMessage = "Credentials required to access created VMs")] [System.Management.Automation.PSCredential] $VMCredentials,
            [Parameter(Mandatory = $true, HelpMessage = "Directory with artifacts collected from other jobs")] [string] $ArtifactsDir,
            [Parameter(Mandatory = $true, HelpMessage = "Location of crash dump files")] [string] $DumpFilesLocation,
-           [Parameter(Mandatory = $true, HelpMessage = "Crash dump files base name (prefix)")] [string] $DumpFilesBaseName)
+           [Parameter(Mandatory = $true, HelpMessage = "Crash dump files base name (prefix)")] [string] $DumpFilesBaseName,
+           [Parameter(Mandatory = $true, HelpMessage = "Max time to wait for VMs")] [int] $MaxWaitVMMinutes)
 
     function Initialize-VIServer {
         Param ([Parameter(Mandatory = $true)] [string] $PowerCLIScriptPath,
@@ -58,8 +59,11 @@ function New-TestbedVMs {
         Param ([Parameter(Mandatory = $true)] [Collections.Generic.List[String]] $VMNamesList,
                [Parameter(Mandatory = $false)] [int] $MaxWaitMinutes = 15)
 
+        $DelaySec = 30
+        $MaxRetries = [math]::Ceiling($MaxWaitMinutes * 60 / $DelaySec)
+
         for ($RetryNum = 0; $VMNamesList.Count -ne 0; ) {
-            Write-Host "Retry number $RetryNum"
+            Write-Host "Retry number $RetryNum / $MaxRetries"
             ping $VMNamesList[0] | Out-Null
 
             if ($? -eq $true) {
@@ -67,10 +71,10 @@ function New-TestbedVMs {
                 continue
             }
 
-            Start-Sleep -s 30
+            Start-Sleep -s $DelaySec
             $RetryNum++
 
-            if ($RetryNum -gt ($MaxWaitMinutes * 2)) {
+            if ($RetryNum -gt $MaxRetries) {
                 throw "Waited for too long. The VMs did not respond in maximum expected time."
             }
         }
@@ -179,7 +183,7 @@ function New-TestbedVMs {
 
     Write-Host "Waiting for VMs to start..."
     $VMsList = [Collections.Generic.List[String]] $VMNames
-    Wait-VMs -VMNames $VMsList
+    Wait-VMs -VMNames $VMsList -MaxWaitMinutes $MaxWaitVMMinutes
 
     $Sessions = New-RemoteSessions -VMNames $VMNames -Credentials $VMCredentials
 
