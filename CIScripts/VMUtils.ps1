@@ -12,6 +12,25 @@ class VIServerAccessData {
     [string] $Server;
 }
 
+function Initialize-VIServer {
+    Param ([Parameter(Mandatory = $true)] [string] $PowerCLIScriptPath,
+           [Parameter(Mandatory = $true)] [VIServerAccessData] $VIServerAccessData)
+
+    Push-Location
+
+    $Res = Get-Command -Name Connect-VIServer -CommandType Cmdlet -ErrorAction SilentlyContinue
+    if (-Not $Res) {
+        & "$PowerCLIScriptPath" | Out-Null
+    }
+
+    Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false | Out-Null
+    Set-PowerCLIConfiguration -DefaultVIServerMode Single -Confirm:$false | Out-Null
+
+    Connect-VIServer -User $VIServerAccessData.Username -Password $VIServerAccessData.Password -Server $VIServerAccessData.Server | Out-Null
+
+    Pop-Location
+}
+
 function New-TestbedVMs {
     Param ([Parameter(Mandatory = $true, HelpMessage = "List of names of created VMs")] [string[]] $VMNames,
            [Parameter(Mandatory = $true, HelpMessage = "Flag indicating if we should install all artifacts on spawned VMs")] [bool] $InstallArtifacts,
@@ -23,19 +42,6 @@ function New-TestbedVMs {
            [Parameter(Mandatory = $true, HelpMessage = "Location of crash dump files")] [string] $DumpFilesLocation,
            [Parameter(Mandatory = $true, HelpMessage = "Crash dump files base name (prefix)")] [string] $DumpFilesBaseName,
            [Parameter(Mandatory = $true, HelpMessage = "Max time to wait for VMs")] [int] $MaxWaitVMMinutes)
-
-    function Initialize-VIServer {
-        Param ([Parameter(Mandatory = $true)] [string] $PowerCLIScriptPath,
-               [Parameter(Mandatory = $true)] [VIServerAccessData] $VIServerAccessData)
-
-        Push-Location
-
-        & "$PowerCLIScriptPath" | Out-Null
-        Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false | Out-Null
-        Connect-VIServer -User $VIServerAccessData.Username -Password $VIServerAccessData.Password -Server $VIServerAccessData.Server | Out-Null
-
-        Pop-Location
-    }
 
     function New-StartedVM {
         Param ([Parameter(Mandatory = $true)] [string] $VMName,
@@ -199,4 +205,32 @@ function New-TestbedVMs {
     }
 
     return $Sessions
+}
+
+function Remove-TestbedVMs {
+    Param ([Parameter(Mandatory = $true, HelpMessage = "List of names of VMs")] [string[]] $VMNames,
+           [Parameter(Mandatory = $true, HelpMessage = "Path to VMWare PowerCLI initialization script")] [string] $PowerCLIScriptPath,
+           [Parameter(Mandatory = $true, HelpMessage = "Access data for VIServer")] [VIServerAccessData] $VIServerAccessData)
+
+    Initialize-VIServer -PowerCLIScriptPath $PowerCLIScriptPath -VIServerAccessData $VIServerAccessData
+
+    $VMNames.ForEach({
+        Write-Host "Removing $_ from datastore"
+        Stop-VM -VM $_ -Kill -Confirm:$false | Out-Null
+        Remove-VM -VM $_ -DeletePermanently -Confirm:$false | Out-Null
+    })
+}
+
+function Get-SanitizedOrGeneratedVMName {
+    Param ([Parameter(Mandatory = $true, HelpMessage = "Name to check. It will be regenerated if needed.")] [string] $VMName,
+           [Parameter(Mandatory = $true, HelpMessage = "Prefix added to randomly generated name")] [string] $RandomNamePrefix)
+
+    $VMName = $VMName.Replace("_", "-")
+    $VMName = [Regex]::Replace($VMName, "[^0-9a-zA-Z-]", [string]::Empty)
+
+    if (($VMName -eq "Auto") -or ($VMName.Length -eq 0)) {
+        return $RandomNamePrefix + [string]([guid]::NewGuid().Guid).Replace("-", "").ToUpper().Substring(0, 6)
+    }
+
+    return $VMName
 }

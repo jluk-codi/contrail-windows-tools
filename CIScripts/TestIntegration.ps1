@@ -6,9 +6,12 @@
 # Setting all variables needed for New-TestbedVMs from Environment
 . $PSScriptRoot\SetCommonVariablesForNewVMsFromEnv.ps1
 
-$VMNames = $Env:VM_NAMES.Split(",")
-for ($i = 0; $i -lt $VMNames.Count; $i++) {
-    $VMNames[$i] = Get-SanitizedOrGeneratedVMName -VMName $VMNames[$i] -RandomNamePrefix "Test-"
+$VMsNeeded = 2 # TODO: JW-838: Check how many needed
+
+$VMBaseName = Get-SanitizedOrGeneratedVMName -VMName $Env:VM_NAME -RandomNamePrefix "Core-"
+$VMNames = [System.Collections.ArrayList] @()
+for ($i = 0; $i -lt $VMsNeeded; $i++) {
+    $VMNames += $VMBaseName + "-" + $i.ToString()
 }
 
 Write-Host "Starting Testbeds:"
@@ -20,3 +23,8 @@ $Sessions = New-TestbedVMs -VMNames $VMNames -InstallArtifacts $true -PowerCLISc
 
 Write-Host "Started Testbeds:"
 $Sessions.ForEach({ Write-Host $_.ComputerName })
+
+# TODO: JW-838: All tests
+
+Write-Host "Removing VMs..."
+Remove-TestbedVMs -VMNames $VMNames -PowerCLIScriptPath $PowerCLIScriptPath -VIServerAccessData $VIServerAccessData
