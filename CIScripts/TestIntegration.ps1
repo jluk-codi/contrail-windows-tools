@@ -6,7 +6,8 @@
 # Setting all variables needed for New-TestbedVMs from Environment
 . $PSScriptRoot\SetCommonVariablesForNewVMsFromEnv.ps1
 
-$VMsNeeded = 2 # TODO: JW-838: Check how many needed
+# There are always 2 VMs created for running all tests
+$VMsNeeded = 2
 
 $VMBaseName = Get-SanitizedOrGeneratedVMName -VMName $Env:VM_NAME -RandomNamePrefix "Core-"
 $VMNames = [System.Collections.ArrayList] @()
@@ -24,7 +25,18 @@ $Sessions = New-TestbedVMs -VMNames $VMNames -InstallArtifacts $true -PowerCLISc
 Write-Host "Started Testbeds:"
 $Sessions.ForEach({ Write-Host $_.ComputerName })
 
-# TODO: JW-838: All tests
+# Sourcing test functions
+. $PSScriptRoot\Tests\Tests.ps1
+
+# TODO: JW-838: Add parameters after tests implementation
+Test-ExtensionLongLeak
+Test-MultiEnableDisableExtension
+Test-VTestScenarios
+Test-TCPCommunication
+Test-ICMPOverMPLSOverGRE
+Test-TCPOverMPLSOverGRE
+Test-SNAT
+Test-DockerDriver
 
 Write-Host "Removing VMs..."
 Remove-TestbedVMs -VMNames $VMNames -PowerCLIScriptPath $PowerCLIScriptPath -VIServerAccessData $VIServerAccessData
