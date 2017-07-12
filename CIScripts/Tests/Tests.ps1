@@ -1,3 +1,5 @@
+. $PSScriptRoot\TestConfigurationUtils.ps1
+
 . $PSScriptRoot\ExtensionLongLeakTest.ps1
 . $PSScriptRoot\MultiEnableDisableExtensionTest.ps1
 . $PSScriptRoot\DockerDriverTest.ps1
