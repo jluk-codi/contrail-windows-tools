@@ -28,6 +28,26 @@ $Sessions.ForEach({ Write-Host $_.ComputerName })
 # Sourcing test functions
 . $PSScriptRoot\Tests\Tests.ps1
 
+$DockerNetworkConfiguration = [DockerNetworkConfiguration] @{
+    TenantName = $Env:DOCKER_NETWORK_TENANT_NAME;
+    NetworkName = $Env:DOCKER_NETWORK_NAME;
+}
+
+$DockerDriverConfiguration = [DockerDriverConfiguration] @{
+    Username = $Env:DOCKER_DRIVER_USERNAME;
+    Password = $Env:DOCKER_DRIVER_PASSWORD;
+    AuthUrl = $Env:DOCKER_DRIVER_AUTH_URL;
+    ControllerIP = $Env:DOCKER_DRIVER_CONTROLLER_IP;
+    NetworkConfiguration = $DockerNetworkConfiguration;
+}
+
+$TestConfiguration = [TestConfiguration] @{
+    AdapterName = $Env:ADAPTER_NAME;
+    VMSwitchName = "Layered " + $Env:ADAPTER_NAME;
+    ForwardingExtensionName = $Env:FORWARDING_EXTENSION_NAME;
+    DockerDriverConfiguration = $DockerDriverConfiguration;
+}
+
 # TODO: JW-838: Add parameters after tests implementation
 Test-ExtensionLongLeak
 Test-MultiEnableDisableExtension
