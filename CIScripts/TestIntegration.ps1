@@ -49,7 +49,7 @@ $TestConfiguration = [TestConfiguration] @{
 }
 
 # TODO: JW-838: Add parameters after tests implementation
-Test-ExtensionLongLeak
+Test-ExtensionLongLeak -Session $Sessions[0] -TestDurationHours $Env:LEAK_TEST_DURATION -TestConfiguration $TestConfiguration
 Test-MultiEnableDisableExtension
 Test-VTestScenarios
 Test-TCPCommunication
