@@ -56,7 +56,7 @@ Test-TCPCommunication
 Test-ICMPOverMPLSOverGRE
 Test-TCPOverMPLSOverGRE
 Test-SNAT
-Test-DockerDriver
+Test-DockerDriver -Session $Sessions[0] -TestConfiguration $TestConfiguration
 
 Write-Host "Removing VMs..."
 Remove-TestbedVMs -VMNames $VMNames -PowerCLIScriptPath $PowerCLIScriptPath -VIServerAccessData $VIServerAccessData
