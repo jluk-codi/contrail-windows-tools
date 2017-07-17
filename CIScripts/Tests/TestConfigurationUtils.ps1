@@ -18,6 +18,29 @@ class TestConfiguration {
     [string] $ForwardingExtensionName;
 }
 
+function Stop-ProcessIfExists {
+    Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
+           [Parameter(Mandatory = $true)] [string] $ProcessName)
+
+    Invoke-Command -Session $Session -ScriptBlock {
+        $Proc = Get-Process $Using:ProcessName -ErrorAction SilentlyContinue
+        if ($Proc) {
+            $Proc | Stop-Process -Force
+        }
+    }
+}
+
+function Test-IsProcessRunning {
+    Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
+           [Parameter(Mandatory = $true)] [string] $ProcessName)
+
+    $Proc = Invoke-Command -Session $Session -ScriptBlock {
+        return $(Get-Process $Using:ProcessName -ErrorAction SilentlyContinue)
+    }
+
+    return $(if ($Proc) { $true } else { $false })
+}
+
 function Enable-VRouterExtension {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
            [Parameter(Mandatory = $true)] [string] $AdapterName,
@@ -95,12 +118,9 @@ function Disable-DockerDriver {
 
     Write-Host "Disabling Docker Driver"
 
-    Invoke-Command -Session $Session -ScriptBlock {
-        $Proc = Get-Process contrail-windows-docker -ErrorAction SilentlyContinue
-        if ($Proc) {
-            $Proc | Stop-Process -Force
-        }
+    Stop-ProcessIfExists -Session $Session -ProcessName "contrail-windows-docker"
 
+    Invoke-Command -Session $Session -ScriptBlock {
         Stop-Service docker | Out-Null
         Get-NetNat | Remove-NetNat -Confirm:$false
         Get-ContainerNetwork | Remove-ContainerNetwork -Force
@@ -111,11 +131,34 @@ function Disable-DockerDriver {
 function Test-IsDockerDriverEnabled {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session)
 
-    $Proc = Invoke-Command -Session $Session -ScriptBlock {
-        return $(Get-Process contrail-windows-docker -ErrorAction SilentlyContinue)
-    }
+    return Test-IsProcessRunning -Session $Session -ProcessName "contrail-windows-docker"
+}
 
-    return $(if ($Proc) { $true } else { $false })
+function Enable-VRouterAgent {
+    Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
+           [Parameter(Mandatory = $true)] [string] $ConfigFilePath)
+
+    Write-Host "Enabling Agent"
+
+    Invoke-Command -Session $Session -ScriptBlock {
+        Start-Job -ScriptBlock {
+            & "C:\Program Files\Juniper Networks\Agent\contrail-vrouter-agent.exe" --config_file $Using:ConfigFilePath
+        } | Out-Null
+    }
+}
+
+function Disable-VRouterAgent {
+    Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session)
+
+    Write-Host "Disabling Agent"
+
+    Stop-ProcessIfExists -Session $Session -ProcessName "contrail-vrouter-agent"
+}
+
+function Test-IsVRouterAgentEnabled {
+    Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session)
+
+    return Test-IsProcessRunning -Session $Session -ProcessName "contrail-vrouter-agent"
 }
 
 function New-DockerNetwork {
@@ -172,6 +215,7 @@ function Clear-TestConfiguration {
     Write-Host "Cleaning up test configuration"
 
     Remove-AllUnusedDockerNetworks -Session $Session
+    Disable-VRouterAgent -Session $Session
     Disable-DockerDriver -Session $Session
     Disable-VRouterExtension -Session $Session -AdapterName $TestConfiguration.AdapterName `
         -VMSwitchName $TestConfiguration.VMSwitchName -ForwardingExtensionName $TestConfiguration.ForwardingExtensionName
