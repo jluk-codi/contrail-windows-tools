@@ -8,6 +8,7 @@ $Env:Container1Name = "Vigorous-Bitcoin-Miner"
 $Env:Container2Name = "Jolly-Lumberjack"
 $Env:Container1IP = "192.168.0.1"
 $Env:Container2IP = "192.168.0.2"
+$Env:ContainerIPPrefixLength = "24"
 $Env:AgentExecutableName = "contrail-vrouter-agent.exe"
 $Env:AgentExecutablePath = $(Join-Path "C:\Program Files\Juniper Networks\Agent" $Env:AgentExecutableName)
 $Env:AgentConfigurationFile = "contrail-vrouter-agent.conf"
