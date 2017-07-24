@@ -45,10 +45,10 @@ function Initialize-DockerNetwork {
 
 function Get-MacOfContainer {
     Param ([Parameter(Mandatory = $true)] [string] $ContainerName)
-    $mac = docker exec $ContainerName powershell -Command {
-        (Get-NetAdapter | Select-Object -first 1).macaddress
+    $Mac = docker exec $ContainerName powershell -Command {
+        (Get-NetAdapter | Select-Object -First 1).MacAddress
     }
-    return $mac
+    return $Mac
 }
 
 function Initialize-ContainerInterface {
@@ -57,17 +57,19 @@ function Initialize-ContainerInterface {
            [Parameter(Mandatory = $true)] [string] $PrefixLength,
            [Parameter(Mandatory = $true)] [string] $TheOtherMac,
            [Parameter(Mandatory = $true)] [string] $TheOtherIP)
-    $command = ('$ifname = (Get-NetAdapter | Select-Object -first 1).Name; ' +`
-        '$ip_set_properly = (New-NetIPAddress -interfacealias ' +`
-        '$ifname -ipaddress {0} -prefixlength {1}).Length; ' +`
+    $Command = ('$IfName = (Get-NetAdapter | Select-Object -First 1).Name; ' +`
+        '$IPAddressesCount = (New-NetIPAddress -InterfaceAlias ' +`
+        '$IfName -IPAddress {0} -PrefixLength {1}).Length; ' +`
         'arp -s {2} {3} | Out-Null; ' +`
-        '$arp_set_properly = $LASTEXITCODE; ' +`
-        'return $($ip_set_properly -gt 0 -and $arp_set_properly -eq 0)' `
+        '$ARPSetProperly = $LASTEXITCODE; ' +`
+        'return $($IPAddressesCount -gt 0 -and $ARPSetProperly -eq 0)' `
         ) -f $ContainerIP, $PrefixLength, $TheOtherIP, $TheOtherMac
-    $Res = docker exec $ContainerName powershell -Command $command 2>&1
+    $Res = docker exec $ContainerName powershell -Command $Command 2>&1
     return $Res
 }
 
+# Relies on system environment variables: Container1Name, Container1IP,
+# Container2Name, Container2IP, ContainerIPPrefixLength.
 function Initialize-ContainerInterfaces {
     Write-Host "Initializing network interfaces for containers... "
     Write-Host -NoNewline "Reading MAC address of '$Env:Container1Name'... "
@@ -79,7 +81,7 @@ function Initialize-ContainerInterfaces {
     Write-Host -NoNewline "Setting up network interface for '$Env:Container1Name'..."
     $Res = Initialize-ContainerInterface -ContainerName $Env:Container1Name `
         -ContainerIP $Env:Container1IP -PrefixLength $Env:ContainerIPPrefixLength `
-        -TheOtherMac $mac2 -TheOtherIP $Env:Container2IP
+        -TheOtherMac $Mac2 -TheOtherIP $Env:Container2IP
     if ($Res -eq $true) {
         Write-Host "Done."
     } else {
@@ -88,7 +90,7 @@ function Initialize-ContainerInterfaces {
     Write-Host -NoNewline "Setting up network interface for '$Env:Container2Name'..."
     $Res = Initialize-ContainerInterface -ContainerName $Env:Container2Name `
         -ContainerIP $Env:Container2IP -PrefixLength $Env:ContainerIPPrefixLength `
-        -TheOtherMac $mac1 -TheOtherIP $Env:Container1IP
+        -TheOtherMac $Mac1 -TheOtherIP $Env:Container1IP
     if ($Res -eq $true) {
         Write-Host "Done."
     } else {
