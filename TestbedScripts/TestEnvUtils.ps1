@@ -43,11 +43,59 @@ function Initialize-DockerNetwork {
     }
 }
 
-function Initialize-ContainerInterface {
+function Get-MacOfContainer {
     Param ([Parameter(Mandatory = $true)] [string] $ContainerName)
-    Write-Host $("TODO: Initializing network interface for container " +`
-        "'$ContainerName'...")
-    # TODO JW-883
+    $Mac = docker exec $ContainerName powershell -Command {
+        (Get-NetAdapter | Select-Object -First 1).MacAddress
+    }
+    return $Mac
+}
+
+function Initialize-ContainerInterface {
+    Param ([Parameter(Mandatory = $true)] [string] $ContainerName,
+           [Parameter(Mandatory = $true)] [string] $ContainerIP,
+           [Parameter(Mandatory = $true)] [string] $PrefixLength,
+           [Parameter(Mandatory = $true)] [string] $TheOtherMac,
+           [Parameter(Mandatory = $true)] [string] $TheOtherIP)
+    $Command = ('$IfName = (Get-NetAdapter | Select-Object -First 1).Name; ' +`
+        '$IPAddressesCount = (New-NetIPAddress -InterfaceAlias ' +`
+        '$IfName -IPAddress {0} -PrefixLength {1}).Length; ' +`
+        'arp -s {2} {3} | Out-Null; ' +`
+        '$ARPSetProperly = $LASTEXITCODE; ' +`
+        'return $($IPAddressesCount -gt 0 -and $ARPSetProperly -eq 0)' `
+        ) -f $ContainerIP, $PrefixLength, $TheOtherIP, $TheOtherMac
+    $Res = docker exec $ContainerName powershell -Command $Command 2>&1
+    return $Res
+}
+
+# Relies on system environment variables: Container1Name, Container1IP,
+# Container2Name, Container2IP, ContainerIPPrefixLength.
+function Initialize-ContainerInterfaces {
+    Write-Host "Initializing network interfaces for containers... "
+    Write-Host -NoNewline "Reading MAC address of '$Env:Container1Name'... "
+    $Mac1 = Get-MacOfContainer -ContainerName $Env:Container1Name
+    Write-Host $Mac1
+    Write-Host -NoNewline "Reading MAC address of '$Env:Container2Name'... "
+    $Mac2 = Get-MacOfContainer -ContainerName $Env:Container2Name
+    Write-Host $Mac2
+    Write-Host -NoNewline "Setting up network interface for '$Env:Container1Name'..."
+    $Res = Initialize-ContainerInterface -ContainerName $Env:Container1Name `
+        -ContainerIP $Env:Container1IP -PrefixLength $Env:ContainerIPPrefixLength `
+        -TheOtherMac $Mac2 -TheOtherIP $Env:Container2IP
+    if ($Res -eq $true) {
+        Write-Host "Done."
+    } else {
+        Write-Host "Failed."
+    }
+    Write-Host -NoNewline "Setting up network interface for '$Env:Container2Name'..."
+    $Res = Initialize-ContainerInterface -ContainerName $Env:Container2Name `
+        -ContainerIP $Env:Container2IP -PrefixLength $Env:ContainerIPPrefixLength `
+        -TheOtherMac $Mac1 -TheOtherIP $Env:Container1IP
+    if ($Res -eq $true) {
+        Write-Host "Done."
+    } else {
+        Write-Host "Failed."
+    }
 }
 
 function Initialize-Container {
@@ -72,7 +120,6 @@ function Initialize-Container {
             Write-Host "Failed."
         } else {
             Write-Host "Done."
-            Initialize-ContainerInterface -ContainerName $ContainerName
         }
     } else {
         Write-Host "Yes."
@@ -154,6 +201,7 @@ function Initialize-DockerNetworkAccordingToEnv {
         $Env:DockerNetworkName -IPAddress $Env:Container1IP
     Initialize-Container -ContainerName $Env:Container2Name -NetworkName `
         $Env:DockerNetworkName -IPAddress $Env:Container2IP
+    Initialize-ContainerInterfaces
     Initialize-ForwardingRules
 }
 
