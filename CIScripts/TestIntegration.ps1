@@ -48,6 +48,15 @@ $TestConfiguration = [TestConfiguration] @{
     DockerDriverConfiguration = $DockerDriverConfiguration;
 }
 
+$SNATConfiguration = [SNATConfiguration] @{
+    EndhostIP = $Env:SNAT_ENDHOST_IP;
+    VethIP = $Env:SNAT_VETH_IP;
+    GatewayIP = $Env:SNAT_GATEWAY_IP;
+    ContainerGatewayIP = $Env:SNAT_CONTAINER_GATEWAY_IP;
+    EndhostUsername = $Env:SNAT_ENDHOST_USERNAME;
+    EndhostPassword = $Env:SNAT_ENDHOST_PASSWORD;
+}
+
 # TODO: JW-838: Add parameters after tests implementation
 Test-ExtensionLongLeak -Session $Sessions[0] -TestDurationHours $Env:LEAK_TEST_DURATION -TestConfiguration $TestConfiguration
 Test-MultiEnableDisableExtension -Session $Sessions[0] -EnableDisableCount $Env:MULTI_ENABLE_DISABLE_EXTENSION_COUNT -TestConfiguration $TestConfiguration
@@ -55,7 +64,7 @@ Test-VTestScenarios -Session $Sessions[0] -TestConfiguration $TestConfiguration
 Test-TCPCommunication -Session $Sessions[0] -TestConfiguration $TestConfiguration
 Test-ICMPoMPLSoGRE -Session1 $Sessions[0] -Session2 $Sessions[1] -TestConfiguration $TestConfiguration
 Test-TCPoMPLSoGRE -Session1 $Sessions[0] -Session2 $Sessions[1] -TestConfiguration $TestConfiguration
-Test-SNAT
+Test-SNAT -Session $Sessions[0] -SNATConfiguration $SNATConfiguration -TestConfiguration $TestConfiguration
 Test-DockerDriver -Session $Sessions[0] -TestConfiguration $TestConfiguration
 
 Write-Host "Removing VMs..."
