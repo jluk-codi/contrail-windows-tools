@@ -53,7 +53,7 @@ Test-ExtensionLongLeak -Session $Sessions[0] -TestDurationHours $Env:LEAK_TEST_D
 Test-MultiEnableDisableExtension -Session $Sessions[0] -EnableDisableCount $Env:MULTI_ENABLE_DISABLE_EXTENSION_COUNT -TestConfiguration $TestConfiguration
 Test-VTestScenarios -Session $Sessions[0] -TestConfiguration $TestConfiguration
 Test-TCPCommunication
-Test-ICMPOverMPLSOverGRE
+Test-ICMPoMPLSoGRE -Session1 $Sessions[0] -Session2 $Sessions[1] -TestConfiguration $TestConfiguration
 Test-TCPOverMPLSOverGRE
 Test-SNAT
 Test-DockerDriver -Session $Sessions[0] -TestConfiguration $TestConfiguration
