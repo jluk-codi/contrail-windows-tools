@@ -15,20 +15,40 @@ Invoke-BatchFile "$Env:VS_SETUP_ENV_SCRIPT_PATH"
 Write-Host "Cloning repositories"
 git clone -b $Env:VROUTER_BRANCH $Env:VROUTER_REPO_URL vrouter/
 git clone -b $Env:SANDESH_BRANCH $Env:SANDESH_REPO_URL tools/sandesh/
+git clone -b $Env:TOOLS_BRANCH $Env:TOOLS_REPO_URL tools/build/
+git clone -b $Env:CONTROLLER_BRANCH $Env:CONTROLLER_REPO_URL controller/
+git clone -b $Env:WINDOWSSTUBS_BRANCH $Env:WINDOWSSTUBS_REPO_URL windows/
 
 Write-Host "Copying third-party dependencies"
-mkdir third_party/
+New-Item -ItemType Directory .\third_party
 Copy-Item -Recurse "$Env:THIRD_PARTY_CACHE_PATH\extension\*" third_party\
 Copy-Item -Recurse "$Env:THIRD_PARTY_CACHE_PATH\common\*" third_party\
 Copy-Item -Recurse third_party\cmocka vrouter\test\
 
+Copy-Item tools\build\SConstruct .\
+
 Write-Host "Building Extension and Utils"
 $cerp = Get-Content $Env:CERT_PASSWORD_FILE_PATH
 devenv.com /Build "Debug|x64" vrouter\vRouter.sln
+if ($LASTEXITCODE -ne 0) {
+    throw "Building vRouter solution failed"
+}
+
+scons vrouter/utils
+if ($LASTEXITCODE -ne 0) {
+    throw "Building utils failed"
+}
 
 $vRouterMSI = "vrouter\windows\installer\vrouterMSI\Debug\vRouter.msi"
-$utilMSI = "vrouter\windows\installer\utilsMSI\Debug\utilsMSI.msi"
+$utilsMSI = "build\debug\vrouter\utils\utils.msi"
 
 Write-Host "Signing MSIs"
-& "$Env:SIGNTOOL_PATH" sign /f "$Env:CERT_PATH" /p $cerp $utilMSI
+& "$Env:SIGNTOOL_PATH" sign /f "$Env:CERT_PATH" /p $cerp $utilsMSI
+if ($LASTEXITCODE -ne 0) {
+    throw "Signing utilsMSI failed"
+}
+
 & "$Env:SIGNTOOL_PATH" sign /f "$Env:CERT_PATH" /p $cerp $vRouterMSI
+if ($LASTEXITCODE -ne 0) {
+    throw "Signing vRouterMSI failed"
+}

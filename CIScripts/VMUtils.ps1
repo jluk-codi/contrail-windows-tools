@@ -153,7 +153,7 @@ function New-TestbedVMs {
 
         Write-Host "Copying vRouter and Utils MSIs"
         Copy-Item -ToSession $Session -Path "vrouter\vRouter.msi" -Destination C:\Artifacts\
-        Copy-Item -ToSession $Session -Path "vrouter\utilsMSI.msi" -Destination C:\Artifacts\
+        Copy-Item -ToSession $Session -Path "vrouter\utils.msi" -Destination C:\Artifacts\
         Copy-Item -ToSession $Session -Path "vrouter\*.cer" -Destination C:\Artifacts\ # TODO: Remove after JW-798
 
         Invoke-Command -Session $Session -ScriptBlock {
@@ -166,7 +166,7 @@ function New-TestbedVMs {
             Start-Process msiexec.exe -ArgumentList @("/i", "C:\Artifacts\vRouter.msi", "/quiet") -Wait
 
             Write-Host "Installing Utils"
-            Start-Process msiexec.exe -ArgumentList @("/i", "C:\Artifacts\utilsMSI.msi", "/quiet") -Wait
+            Start-Process msiexec.exe -ArgumentList @("/i", "C:\Artifacts\utils.msi", "/quiet") -Wait
 
             Write-Host "Installing Docker driver"
             Start-Process msiexec.exe -ArgumentList @("/i", "C:\Artifacts\installer.msi", "/quiet") -Wait
