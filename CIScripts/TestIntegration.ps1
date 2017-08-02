@@ -7,7 +7,7 @@
 . $PSScriptRoot\SetCommonVariablesForNewVMsFromEnv.ps1
 
 # There are always 2 VMs created for running all tests
-$VMsNeeded = 2
+$VMsNeeded = 1
 
 $VMBaseName = Get-SanitizedOrGeneratedVMName -VMName $Env:VM_NAME -RandomNamePrefix "Core-"
 $VMNames = [System.Collections.ArrayList] @()
@@ -57,14 +57,22 @@ $SNATConfiguration = [SNATConfiguration] @{
     EndhostPassword = $Env:SNAT_ENDHOST_PASSWORD;
 }
 
-Test-ExtensionLongLeak -Session $Sessions[0] -TestDurationHours $Env:LEAK_TEST_DURATION -TestConfiguration $TestConfiguration
-Test-MultiEnableDisableExtension -Session $Sessions[0] -EnableDisableCount $Env:MULTI_ENABLE_DISABLE_EXTENSION_COUNT -TestConfiguration $TestConfiguration
-Test-VTestScenarios -Session $Sessions[0] -TestConfiguration $TestConfiguration
-Test-TCPCommunication -Session $Sessions[0] -TestConfiguration $TestConfiguration
-Test-ICMPoMPLSoGRE -Session1 $Sessions[0] -Session2 $Sessions[1] -TestConfiguration $TestConfiguration
-Test-TCPoMPLSoGRE -Session1 $Sessions[0] -Session2 $Sessions[1] -TestConfiguration $TestConfiguration
+Write-Host $("EndhostIP: " + $SNATConfiguration.EndhostIP)
+Write-Host $("VethIP: " + $SNATConfiguration.VethIP)
+Write-Host $("GatewayIP: " + $SNATConfiguration.GatewayIP)
+Write-Host $("ContainerGatewayIP: " + $SNATConfiguration.ContainerGatewayIP)
+Write-Host $("EndhostUsername: " + $SNATConfiguration.EndhostUsername)
+Write-Host $("EndhostPassword: " + $SNATConfiguration.EndhostPassword)
+$SNATConfiguration
+
+#Test-ExtensionLongLeak -Session $Sessions[0] -TestDurationHours $Env:LEAK_TEST_DURATION -TestConfiguration $TestConfiguration
+#Test-MultiEnableDisableExtension -Session $Sessions[0] -EnableDisableCount $Env:MULTI_ENABLE_DISABLE_EXTENSION_COUNT -TestConfiguration $TestConfiguration
+#Test-VTestScenarios -Session $Sessions[0] -TestConfiguration $TestConfiguration
+#Test-TCPCommunication -Session $Sessions[0] -TestConfiguration $TestConfiguration
+#Test-ICMPoMPLSoGRE -Session1 $Sessions[0] -Session2 $Sessions[1] -TestConfiguration $TestConfiguration
+#Test-TCPoMPLSoGRE -Session1 $Sessions[0] -Session2 $Sessions[1] -TestConfiguration $TestConfiguration
 Test-SNAT -Session $Sessions[0] -SNATConfiguration $SNATConfiguration -TestConfiguration $TestConfiguration
-Test-DockerDriver -Session $Sessions[0] -TestConfiguration $TestConfiguration
+#Test-DockerDriver -Session $Sessions[0] -TestConfiguration $TestConfiguration
 
 Write-Host "Removing VMs..."
 Remove-TestbedVMs -VMNames $VMNames -PowerCLIScriptPath $PowerCLIScriptPath -VIServerAccessData $VIServerAccessData
