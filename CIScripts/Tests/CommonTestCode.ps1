@@ -11,6 +11,10 @@ class NetAdapterInformation : NetAdapterMacAddresses {
 class ContainerNetAdapterInformation : NetAdapterInformation {
     [string] $AdapterShortName;
     [string] $AdapterFullName;
+    [string] $IfName;
+    [string] $IfIndex;
+    [string] $MACAddress;
+    [string] $MACAddressWindows;
     [string] $IPAddress;
 }
 
@@ -61,6 +65,8 @@ function Get-RemoteContainerNetAdapterInformation {
         $IfName = docker exec $Using:ContainerID powershell "${NetAdapterCommand}.IfName"
         $AdapterFullName = docker exec $Using:ContainerID powershell "${NetAdapterCommand}.Name"
         $AdapterShortName = [regex]::new("vEthernet \((.*)\)").Replace($AdapterFullName, "`$1")
+        $IfName = docker exec $Using:ContainerID powershell "${NetAdapterCommand}.IfName"
+        $IfIndex = docker exec $Using:ContainerID powershell "${NetAdapterCommand}.IfIndex"
         $MACAddressWindows = docker exec $Using:ContainerID powershell "${NetAdapterCommand}.MacAddress.ToLower()"
         $MACAddress = $MACAddressWindows.Replace("-", ":")
         $IPAddress = docker exec $Using:ContainerID powershell "(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias '${AdapterFullName}').IPAddress"
@@ -84,12 +90,14 @@ function Initialize-MPLSoGRE {
            [Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session2,
            [Parameter(Mandatory = $true)] [string] $Container1ID,
            [Parameter(Mandatory = $true)] [string] $Container2ID,
-           [Parameter(Mandatory = $true)] [string] $AdapterName)
+           [Parameter(Mandatory = $true)] [string] $AdapterName,
+           [Parameter(Mandatory = $true)] [string] $VHostName)
 
     function Initialize-VRouterStructures {
         Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
                [Parameter(Mandatory = $true)] [NetAdapterInformation] $ThisVMNetInfo,
                [Parameter(Mandatory = $true)] [NetAdapterInformation] $OtherVMNetInfo,
+               [Parameter(Mandatory = $true)] [NetAdapterInformation] $ThisVHostInfo,
                [Parameter(Mandatory = $true)] [ContainerNetAdapterInformation] $ThisContainerNetInfo,
                [Parameter(Mandatory = $true)] [ContainerNetAdapterInformation] $OtherContainerNetInfo,
                [Parameter(Mandatory = $true)] [string] $ThisIPAddress,
@@ -97,11 +105,11 @@ function Initialize-MPLSoGRE {
 
         Invoke-Command -Session $Session -ScriptBlock {
             vif --add $Using:ThisVMNetInfo.IfName --mac $Using:ThisVMNetInfo.MacAddress --vrf 0 --type physical
-            vif --add HNSTransparent --mac $Using:ThisVMNetInfo.MACAddress --vrf 0 --type vhost --xconnect $Using:ThisVMNetInfo.IfName
-            vif --add $Using:ThisContainerNetInfo.AdapterShortName --mac $Using:ThisContainerNetInfo.MACAddress --vrf 1 --type virtual --vif 1
+            vif --add $Using:ThisVHostInfo.IfName --mac $Using:ThisVHostInfo.MacAddress --vrf 0 --type vhost --xconnect $Using:ThisVMNetInfo.IfName
+            vif --add $Using:ThisContainerNetInfo.IfName --mac $Using:ThisContainerNetInfo.MACAddress --vrf 1 --type virtual
 
-            nh --create 4 --vrf 0 --type 1 --oif 0
-            nh --create 3 --vrf 1 --type 2 --el2 --oif 1
+            nh --create 4 --vrf 0 --type 1 --oif $Using:ThisVHostInfo.IfIndex
+            nh --create 3 --vrf 1 --type 2 --el2 --oif $Using:ThisContainerNetInfo.IfIndex
             nh --create 2 --vrf 0 --type 3 --oif $Using:ThisVMNetInfo.IfIndex `
                 --dmac $Using:OtherVMNetInfo.MACAddress --smac $Using:ThisVMNetInfo.MACAddress `
                 --dip $Using:OtherIPAddress --sip $Using:ThisIPAddress
@@ -117,6 +125,10 @@ function Initialize-MPLSoGRE {
     $VM1NetInfo = Get-RemoteNetAdapterInformation -Session $Session1 -AdapterName $AdapterName
     $VM2NetInfo = Get-RemoteNetAdapterInformation -Session $Session2 -AdapterName $AdapterName
 
+    Write-Host "Getting VM vHost NetAdapter Information"
+    $VM1VHostInfo = Get-RemoteNetAdapterInformation -Session $Session1 -AdapterName $VHostName
+    $VM2VHostInfo = Get-RemoteNetAdapterInformation -Session $Session2 -AdapterName $VHostName
+
     Write-Host "Getting Containers NetAdapter Information"
     $Container1NetInfo = Get-RemoteContainerNetAdapterInformation -Session $Session1 -ContainerID $Container1ID
     $Container2NetInfo = Get-RemoteContainerNetAdapterInformation -Session $Session2 -ContainerID $Container2ID
@@ -127,11 +139,11 @@ function Initialize-MPLSoGRE {
     $VM2LogicalRouterIPAddress = "192.168.3.102"
 
     Initialize-VRouterStructures -Session $Session1 -ThisVMNetInfo $VM1NetInfo -OtherVMNetInfo $VM2NetInfo `
-        -ThisContainerNetInfo $Container1NetInfo -OtherContainerNetInfo $Container2NetInfo `
+        -ThisContainerNetInfo $Container1NetInfo -OtherContainerNetInfo $Container2NetInfo -ThisVHostInfo $VM1VHostInfo `
         -ThisIPAddress $VM1LogicalRouterIPAddress -OtherIPAddress $VM2LogicalRouterIPAddress
 
     Initialize-VRouterStructures -Session $Session2 -ThisVMNetInfo $VM2NetInfo -OtherVMNetInfo $VM1NetInfo `
-        -ThisContainerNetInfo $Container2NetInfo -OtherContainerNetInfo $Container1NetInfo `
+        -ThisContainerNetInfo $Container2NetInfo -OtherContainerNetInfo $Container1NetInfo -ThisVHostInfo $VM2VHostInfo `
         -ThisIPAddress $VM2LogicalRouterIPAddress -OtherIPAddress $VM1LogicalRouterIPAddress
 
     Write-Host "Executing netsh"

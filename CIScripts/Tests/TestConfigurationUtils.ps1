@@ -14,6 +14,7 @@ class DockerDriverConfiguration {
 class TestConfiguration {
     [DockerDriverConfiguration] $DockerDriverConfiguration;
     [string] $AdapterName;
+    [string] $VHostName;
     [string] $VMSwitchName;
     [string] $ForwardingExtensionName;
 }
