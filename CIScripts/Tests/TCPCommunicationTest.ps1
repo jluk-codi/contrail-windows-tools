@@ -36,7 +36,6 @@ function Test-TCPCommunication {
         vif.exe --add $Using:ClientNetInfo.IfName --mac $Using:ClientNetInfo.MACAddress --vrf 1 --type virtual
 
         nh.exe --create 1 --vrf 1 --type 2 --el2 --oif $Using:ServerNetInfo.IfIndex
-        Write-Host "nh.exe --create 2 --vrf 1 --type 2 --el2 --oif " + $Using:ClientNetInfo.IfIndex
         nh.exe --create 2 --vrf 1 --type 2 --el2 --oif $Using:ClientNetInfo.IfIndex
         nh.exe --create 3 --vrf 1 --type 6 --cen --cni 1 --cni 2
 

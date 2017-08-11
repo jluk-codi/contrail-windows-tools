@@ -65,8 +65,6 @@ function Get-RemoteContainerNetAdapterInformation {
         $IfName = docker exec $Using:ContainerID powershell "${NetAdapterCommand}.IfName"
         $AdapterFullName = docker exec $Using:ContainerID powershell "${NetAdapterCommand}.Name"
         $AdapterShortName = [regex]::new("vEthernet \((.*)\)").Replace($AdapterFullName, "`$1")
-        $IfName = docker exec $Using:ContainerID powershell "${NetAdapterCommand}.IfName"
-        $IfIndex = docker exec $Using:ContainerID powershell "${NetAdapterCommand}.IfIndex"
         $MACAddressWindows = docker exec $Using:ContainerID powershell "${NetAdapterCommand}.MacAddress.ToLower()"
         $MACAddress = $MACAddressWindows.Replace("-", ":")
         $IPAddress = docker exec $Using:ContainerID powershell "(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias '${AdapterFullName}').IPAddress"
