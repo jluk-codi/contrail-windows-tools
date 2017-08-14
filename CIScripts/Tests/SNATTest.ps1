@@ -382,7 +382,7 @@ function Test-SNAT {
 
     Write-Host "Extracting adapters data..."
     $PhysicalAdapter = Get-RemoteNetAdapterInformation -Session $Session -AdapterName $TestConfiguration.AdapterName
-    $HNSAdapter = Get-RemoteNetAdapterInformation -Session $Session -AdapterName HNSTransparent
+    $HNSAdapter = Get-RemoteNetAdapterInformation -Session $Session -AdapterName $TestConfiguration.VHostName
     $SNATLeft = Get-RemoteVMNetAdapterInformation -Session $Session -VMName $SNATVMName -AdapterName $SNATLeftName
     $SNATRight = Get-RemoteVMNetAdapterInformation -Session $Session -VMName $SNATVMName -AdapterName $SNATRightName
     Write-Host "Extracting adapters data... DONE"

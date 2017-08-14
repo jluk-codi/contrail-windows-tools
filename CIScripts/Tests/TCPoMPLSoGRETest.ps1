@@ -16,7 +16,7 @@ function Test-TCPoMPLSoGRE {
     . $PSScriptRoot\CommonTestCode.ps1
 
     $ServerIP, $ClientIP = Initialize-MPLSoGRE -Session1 $Session1 -Session2 $Session2 `
-        -Container1ID $ServerID -Container2ID $ClientID -AdapterName $TestConfiguration.AdapterName
+        -Container1ID $ServerID -Container2ID $ClientID -TestConfiguration $TestConfiguration
 
     Write-Host "Invoking web request"
     $Res = Invoke-Command -Session $Session2 -ScriptBlock {

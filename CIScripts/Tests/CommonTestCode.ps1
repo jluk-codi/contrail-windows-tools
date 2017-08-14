@@ -23,7 +23,7 @@ function Get-RemoteNetAdapterInformation {
            [Parameter(Mandatory = $true)] [string] $AdapterName)
 
     $NetAdapterInformation = Invoke-Command -Session $Session -ScriptBlock {
-        $Res = Get-NetAdapter | Where-Object Name -Match $Using:AdapterName | Select-Object ifName,MacAddress,ifIndex
+        $Res = Get-NetAdapter -Name $Using:AdapterName | Select-Object ifName,MacAddress,ifIndex
 
         return @{
             IfIndex = $Res.IfIndex;
@@ -88,8 +88,7 @@ function Initialize-MPLSoGRE {
            [Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session2,
            [Parameter(Mandatory = $true)] [string] $Container1ID,
            [Parameter(Mandatory = $true)] [string] $Container2ID,
-           [Parameter(Mandatory = $true)] [string] $AdapterName,
-           [Parameter(Mandatory = $true)] [string] $VHostName)
+           [Parameter(Mandatory = $true)] [TestConfiguration] $TestConfiguration)
 
     function Initialize-VRouterStructures {
         Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
@@ -120,12 +119,12 @@ function Initialize-MPLSoGRE {
     }
 
     Write-Host "Getting VM NetAdapter Information"
-    $VM1NetInfo = Get-RemoteNetAdapterInformation -Session $Session1 -AdapterName $AdapterName
-    $VM2NetInfo = Get-RemoteNetAdapterInformation -Session $Session2 -AdapterName $AdapterName
+    $VM1NetInfo = Get-RemoteNetAdapterInformation -Session $Session1 -AdapterName $TestConfiguration.AdapterName
+    $VM2NetInfo = Get-RemoteNetAdapterInformation -Session $Session2 -AdapterName $TestConfiguration.AdapterName
 
     Write-Host "Getting VM vHost NetAdapter Information"
-    $VM1VHostInfo = Get-RemoteNetAdapterInformation -Session $Session1 -AdapterName $VHostName
-    $VM2VHostInfo = Get-RemoteNetAdapterInformation -Session $Session2 -AdapterName $VHostName
+    $VM1VHostInfo = Get-RemoteNetAdapterInformation -Session $Session1 -AdapterName $TestConfiguration.VHostName
+    $VM2VHostInfo = Get-RemoteNetAdapterInformation -Session $Session2 -AdapterName $TestConfiguration.VHostName
 
     Write-Host "Getting Containers NetAdapter Information"
     $Container1NetInfo = Get-RemoteContainerNetAdapterInformation -Session $Session1 -ContainerID $Container1ID
