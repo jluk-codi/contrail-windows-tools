@@ -11,10 +11,6 @@ class NetAdapterInformation : NetAdapterMacAddresses {
 class ContainerNetAdapterInformation : NetAdapterInformation {
     [string] $AdapterShortName;
     [string] $AdapterFullName;
-    [string] $IfName;
-    [string] $IfIndex;
-    [string] $MACAddress;
-    [string] $MACAddressWindows;
     [string] $IPAddress;
 }
 
