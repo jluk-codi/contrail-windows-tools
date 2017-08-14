@@ -11,10 +11,10 @@
 
 - name: Copy contrail docker driver installer on remote machine
   win_copy:
-     src: installer.msi
-     dest: c:\installer.msi
+     src: DockerDriver.msi
+     dest: c:\DockerDriver.msi
 
 - name: Installing contrail docker driver
   win_msi:
-     path: c:\installer.msi
+     path: c:\DockerDriver.msi
      wait: true
