@@ -142,7 +142,7 @@ function New-TestbedVMs {
         }
 
         Write-Host "Copying Docker driver installer"
-        Copy-Item -ToSession $Session -Path "docker_driver\installer.msi" -Destination C:\Artifacts\
+        Copy-Item -ToSession $Session -Path "docker_driver\docker-driver.msi" -Destination C:\Artifacts\
 
         Write-Host "Copying Agent and Contrail vRouter API"
         Copy-Item -ToSession $Session -Path "agent\contrail-vrouter-agent.msi" -Destination C:\Artifacts\
@@ -169,7 +169,7 @@ function New-TestbedVMs {
             Start-Process msiexec.exe -ArgumentList @("/i", "C:\Artifacts\utils.msi", "/quiet") -Wait
 
             Write-Host "Installing Docker driver"
-            Start-Process msiexec.exe -ArgumentList @("/i", "C:\Artifacts\installer.msi", "/quiet") -Wait
+            Start-Process msiexec.exe -ArgumentList @("/i", "C:\Artifacts\docker-driver.msi", "/quiet") -Wait
 
             Write-Host "Installing Agent"
             Start-Process msiexec.exe -ArgumentList @("/i", "C:\Artifacts\contrail-vrouter-agent.msi", "/quiet") -Wait

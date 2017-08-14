@@ -37,10 +37,10 @@ go get -u -v github.com/mh-cbon/go-msi
 
 Write-Host "Building MSI"
 Push-Location $srcPath
-& "$Env:GOPATH/bin/go-msi" make --msi installer.msi --arch x64 --version 0.1 --src template --out $pwd/gomsi
+& "$Env:GOPATH/bin/go-msi" make --msi docker-driver.msi --arch x64 --version 0.1 --src template --out $pwd/gomsi
 Pop-Location
 
-Move-Item $srcPath/installer.msi ./
+Move-Item $srcPath/docker-driver.msi ./
 
 $cerp = Get-Content $Env:CERT_PASSWORD_FILE_PATH
-& $Env:SIGNTOOL_PATH sign /f $Env:CERT_PATH /p $cerp installer.msi
+& $Env:SIGNTOOL_PATH sign /f $Env:CERT_PATH /p $cerp docker-driver.msi
