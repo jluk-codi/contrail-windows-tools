@@ -308,10 +308,10 @@ function Test-SNAT {
         }
 
         if($VM) {
-            throw "SNAT VM was not properly cleaned up! Test FAILED"
+            throw "===> SNAT VM was not properly cleaned up! Test FAILED"
         }
 
-        Write-Host "SNAV VM was properly cleaned up! Test succeeded"
+        Write-Host "===> SNAV VM was properly cleaned up! Test succeeded"
     }
 
     function Test-VHDXShouldBeCleanedUp {
@@ -325,10 +325,10 @@ function Test-SNAT {
         }
 
         if($VM) {
-            throw "SNAT VHDX was not properly cleaned up! Test FAILED"
+            throw "===> SNAT VHDX was not properly cleaned up! Test FAILED"
         }
 
-        Write-Host "SNAT VHDX was properly cleaned up! Test succeeded"
+        Write-Host "===> SNAT VHDX was properly cleaned up! Test succeeded"
     }
 
     function Test-CanPingEndhostFromContainer {
@@ -341,11 +341,11 @@ function Test-SNAT {
             $LASTEXITCODE
         }
         if ($Res -ne 0) {
-            throw "SNAT test failed"
+            throw "===> SNAT test failed"
         }
     }
 
-    Write-Host "Running Simple SNAT test"
+    Write-Host "===> Running Simple SNAT test"
 
     Initialize-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration
 
@@ -418,5 +418,5 @@ function Test-SNAT {
 
     Clear-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration
 
-    Write-Host "Success"
+    Write-Host "===> Success"
 }

@@ -3,7 +3,7 @@ function Test-ICMPoMPLSoGRE {
            [Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session2,
            [Parameter(Mandatory = $true)] [TestConfiguration] $TestConfiguration)
 
-    Write-Host "Running ICMP over MPLS over GRE test"
+    Write-Host "===> Running ICMP over MPLS over GRE test"
 
     Initialize-TestConfiguration -Session $Session1 -TestConfiguration $TestConfiguration
     Initialize-TestConfiguration -Session $Session2 -TestConfiguration $TestConfiguration
@@ -31,11 +31,11 @@ function Test-ICMPoMPLSoGRE {
     Invoke-Command -Session $Session2 -ScriptBlock { docker rm -f $Using:Container2ID } | Out-Null
 
     if (($Res1 -ne 0) -or ($Res2 -ne 0)) {
-        throw "Multi-host ping test failed!"
+        throw "===> Multi-host ping test failed!"
     }
 
     Clear-TestConfiguration -Session $Session1 -TestConfiguration $TestConfiguration
     Clear-TestConfiguration -Session $Session2 -TestConfiguration $TestConfiguration
 
-    Write-Host "Success"
+    Write-Host "===> Success"
 }

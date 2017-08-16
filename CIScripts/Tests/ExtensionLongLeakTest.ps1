@@ -4,11 +4,11 @@ function Test-ExtensionLongLeak {
            [Parameter(Mandatory = $true)] [TestConfiguration] $TestConfiguration)
 
     if ($TestDurationHours -eq 0) {
-        Write-Host "Extension leak test skipped."
+        Write-Host "===> Extension leak test skipped."
         return
     }
 
-    Write-Host "Running Extension leak test. Duration: ${TestDurationHours}h..."
+    Write-Host "===> Running Extension leak test. Duration: ${TestDurationHours}h..."
 
     Initialize-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration
 
@@ -28,5 +28,5 @@ function Test-ExtensionLongLeak {
 
     Clear-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration
 
-    Write-Host "Success!"
+    Write-Host "===> Success!"
 }

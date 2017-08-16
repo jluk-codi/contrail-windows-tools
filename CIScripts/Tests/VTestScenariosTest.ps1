@@ -2,7 +2,7 @@ function Test-VTestScenarios {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
            [Parameter(Mandatory = $true)] [TestConfiguration] $TestConfiguration)
 
-    Write-Host "Running vtest scenarios"
+    Write-Host "===> Running vtest scenarios"
 
     Initialize-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration
 
@@ -18,10 +18,10 @@ function Test-VTestScenarios {
     }
 
     if ($Res -ne 0) {
-        throw "VTest scenarios test failed!"
+        throw "===> VTest scenarios test failed!"
     }
 
     Clear-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration
 
-    Write-Host "Success!"
+    Write-Host "===> Success!"
 }

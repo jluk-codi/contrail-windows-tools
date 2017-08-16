@@ -2,7 +2,7 @@ function Test-TCPCommunication {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
            [Parameter(Mandatory = $true)] [TestConfiguration] $TestConfiguration)
 
-    Write-Host "Running TCP Communication test"
+    Write-Host "===> Running TCP Communication test"
 
     Initialize-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration
 
@@ -58,10 +58,10 @@ function Test-TCPCommunication {
     Invoke-Command -Session $Session -ScriptBlock { docker rm -f $Using:ClientID } | Out-Null
 
     if($Res -ne 0) {
-        throw "TCP test failed!"
+        throw "===> TCP test failed!"
     }
 
     Clear-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration
 
-    Write-Host "Success!"
+    Write-Host "===> Success!"
 }

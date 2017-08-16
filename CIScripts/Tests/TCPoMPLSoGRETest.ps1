@@ -3,7 +3,7 @@ function Test-TCPoMPLSoGRE {
            [Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session2,
            [Parameter(Mandatory = $true)] [TestConfiguration] $TestConfiguration)
 
-    Write-Host "Running TCP over MPLS over GRE test"
+    Write-Host "===> Running TCP over MPLS over GRE test"
 
     Initialize-TestConfiguration -Session $Session1 -TestConfiguration $TestConfiguration
     Initialize-TestConfiguration -Session $Session2 -TestConfiguration $TestConfiguration
@@ -30,11 +30,11 @@ function Test-TCPoMPLSoGRE {
     Invoke-Command -Session $Session2 -ScriptBlock { docker rm -f $Using:ClientID } | Out-Null
 
     if($Res -ne 0) {
-        throw "TCP test failed!"
+        throw "===> TCP test failed!"
     }
 
     Clear-TestConfiguration -Session $Session1 -TestConfiguration $TestConfiguration
     Clear-TestConfiguration -Session $Session2 -TestConfiguration $TestConfiguration
 
-    Write-Host "Success"
+    Write-Host "===> Success"
 }

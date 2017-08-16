@@ -2,7 +2,7 @@ function Test-DockerDriver {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
            [Parameter(Mandatory = $true)] [TestConfiguration] $TestConfiguration)
 
-    Write-Host "Running Docker Driver test."
+    Write-Host "===> Running Docker Driver test."
 
     $TestFailed = $false
     $TestsPath = "C:\Program Files\Juniper Networks\"
@@ -54,10 +54,10 @@ function Test-DockerDriver {
     })
 
     if ($TestFailed -eq $true) {
-        throw "Docker Driver test failed."
+        throw "===> Docker Driver test failed."
     }
 
     Clear-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration
 
-    Write-Host "Success"
+    Write-Host "===> Success"
 }
