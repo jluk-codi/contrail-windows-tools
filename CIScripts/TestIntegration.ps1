@@ -68,7 +68,7 @@ Test-ICMPoMPLSoGRE -Session1 $Sessions[0] -Session2 $Sessions[1] -TestConfigurat
 Test-TCPoMPLSoGRE -Session1 $Sessions[0] -Session2 $Sessions[1] -TestConfiguration $TestConfiguration
 Test-SNAT -Session $Sessions[0] -SNATConfiguration $SNATConfiguration -TestConfiguration $TestConfiguration
 
-if($Env:RUN_DRIVER_TESTS) {
+if($Env:RUN_DRIVER_TESTS -eq "1") {
     Test-DockerDriver -Session $Sessions[0] -TestConfiguration $TestConfiguration
 }
 
