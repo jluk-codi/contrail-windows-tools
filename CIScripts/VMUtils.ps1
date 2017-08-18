@@ -18,6 +18,8 @@ function Initialize-VIServer {
 
     Push-Location
 
+    # Global named mutex needed here because all PowerCLI commnads are running in global context and modify common configuration files.
+    # Without this mutex, PowerCLI commands may throw an exception in case of configuration file being blocked by another job.
     $Mutex = [System.Threading.Mutex]::new($false, "WinContrailCIPowerCLIMutex")
     [void] $Mutex.WaitOne()
 
