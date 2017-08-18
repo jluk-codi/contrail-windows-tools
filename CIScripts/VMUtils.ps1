@@ -18,15 +18,23 @@ function Initialize-VIServer {
 
     Push-Location
 
-    $Res = Get-Command -Name Connect-VIServer -CommandType Cmdlet -ErrorAction SilentlyContinue
-    if (-Not $Res) {
-        & "$PowerCLIScriptPath" | Out-Null
+    $Mutex = [System.Threading.Mutex]::new($false, "WinContrailCIPowerCLIMutex")
+    [void] $Mutex.WaitOne()
+
+    try {
+        $Res = Get-Command -Name Connect-VIServer -CommandType Cmdlet -ErrorAction SilentlyContinue
+        if (-Not $Res) {
+            & "$PowerCLIScriptPath" | Out-Null
+        }
+
+        Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false | Out-Null
+        Set-PowerCLIConfiguration -DefaultVIServerMode Single -Confirm:$false | Out-Null
+
+        Connect-VIServer -User $VIServerAccessData.Username -Password $VIServerAccessData.Password -Server $VIServerAccessData.Server | Out-Null
     }
-
-    Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false | Out-Null
-    Set-PowerCLIConfiguration -DefaultVIServerMode Single -Confirm:$false | Out-Null
-
-    Connect-VIServer -User $VIServerAccessData.Username -Password $VIServerAccessData.Password -Server $VIServerAccessData.Server | Out-Null
+    finally {
+        [void] $Mutex.ReleaseMutex()
+    }
 
     Pop-Location
 }
