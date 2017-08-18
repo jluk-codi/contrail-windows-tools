@@ -85,7 +85,8 @@ function Test-IsVRouterExtensionEnabled {
 function Enable-DockerDriver {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
            [Parameter(Mandatory = $true)] [string] $AdapterName,
-           [Parameter(Mandatory = $true)] [DockerDriverConfiguration] $Configuration)
+           [Parameter(Mandatory = $true)] [DockerDriverConfiguration] $Configuration,
+           [Parameter(Mandatory = $false)] [int] $WaitTime = 60)
 
     Write-Host "Enabling Docker Driver"
 
@@ -110,7 +111,7 @@ function Enable-DockerDriver {
         } | Out-Null
     }
 
-    Start-Sleep -s 60
+    Start-Sleep -s $WaitTime
 }
 
 function Disable-DockerDriver {
@@ -193,9 +194,23 @@ function Initialize-TestConfiguration {
     Write-Host "Initializing Test Configuration"
 
     # DockerDriver automatically enables Extension, so there is no need to enable it manually
-    Enable-DockerDriver -Session $Session -AdapterName $TestConfiguration.AdapterName -Configuration $TestConfiguration.DockerDriverConfiguration
+    Enable-DockerDriver -Session $Session -AdapterName $TestConfiguration.AdapterName -Configuration $TestConfiguration.DockerDriverConfiguration -WaitTime 0
 
-    $Res = Test-IsVRouterExtensionEnabled -Session $Session -VMSwitchName $TestConfiguration.VMSwitchName -ForwardingExtensionName $TestConfiguration.ForwardingExtensionName
+    $WaitForSeconds = 600;
+    $SleepTimeBetweenChecks = 10;
+    $MaxNumberOfChecks = $WaitForSeconds / $SleepTimeBetweenChecks
+
+    # Wait for vRouter Extension to be started by DockerDriver
+    $Res = $false
+    for ($RetryNum = $MaxNumberOfChecks; $RetryNum -gt 0; $RetryNum--) {
+        $Res = Test-IsVRouterExtensionEnabled -Session $Session -VMSwitchName $TestConfiguration.VMSwitchName -ForwardingExtensionName $TestConfiguration.ForwardingExtensionName
+        if ($Res -eq $true) {
+            break;
+        }
+
+        Start-Sleep -s $SleepTimeBetweenChecks
+    }
+
     if ($Res -ne $true) {
         throw "Extension was not enabled or is not running."
     }
