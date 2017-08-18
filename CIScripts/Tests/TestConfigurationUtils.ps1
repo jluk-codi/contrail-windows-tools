@@ -196,14 +196,19 @@ function Initialize-TestConfiguration {
     # DockerDriver automatically enables Extension, so there is no need to enable it manually
     Enable-DockerDriver -Session $Session -AdapterName $TestConfiguration.AdapterName -Configuration $TestConfiguration.DockerDriverConfiguration -WaitTime 0
 
+    $WaitForSeconds = 600;
+    $SleepTimeBetweenChecks = 10;
+    $MaxNumberOfChecks = $WaitForSeconds / $SleepTimeBetweenChecks
+
+    # Wait for vRouter Extension to be started by DockerDriver
     $Res = $false
-    for ($RetryNum = 60; $RetryNum -gt 0; $RetryNum--) {
+    for ($RetryNum = $MaxNumberOfChecks; $RetryNum -gt 0; $RetryNum--) {
         $Res = Test-IsVRouterExtensionEnabled -Session $Session -VMSwitchName $TestConfiguration.VMSwitchName -ForwardingExtensionName $TestConfiguration.ForwardingExtensionName
         if ($Res -eq $true) {
             break;
         }
 
-        Start-Sleep -s 10
+        Start-Sleep -s $SleepTimeBetweenChecks
     }
 
     if ($Res -ne $true) {
