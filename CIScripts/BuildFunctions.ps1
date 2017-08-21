@@ -151,5 +151,22 @@ function Invoke-AgentBuild {
     if ($LASTEXITCODE -ne 0) {
         throw "Building Agent failed"
     }
+
+    Write-Host "Building tests"
+
+    [Array]$Tests = "agent:test_ksync", "src/ksync:ksync_test"
+    # TODO: Add other tests here once they are functional.
+
+    $TestsString = ""
+    Foreach ($Test in $Tests) {
+        $TestsString = $TestsString + $Test + " "
+    }
+
+    $BuildCommand = "scons"
+    $TestsBuildCommand = "{0} {1}" -f "$BuildCommand","$TestsString"
+    Invoke-Expression $TestsBuildCommand
+    if ($LASTEXITCODE -ne 0) {
+        throw "Building tests failed"
+    }
 }
 
