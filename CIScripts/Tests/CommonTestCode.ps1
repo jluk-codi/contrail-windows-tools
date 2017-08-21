@@ -14,12 +14,16 @@ class ContainerNetAdapterInformation : NetAdapterInformation {
     [string] $IPAddress;
 }
 
+class VMNetAdapterInformation : NetAdapterMacAddresses {
+    [string] $GUID;
+}
+
 function Get-RemoteNetAdapterInformation {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
            [Parameter(Mandatory = $true)] [string] $AdapterName)
 
     $NetAdapterInformation = Invoke-Command -Session $Session -ScriptBlock {
-        $Res = Get-NetAdapter -Name $Using:AdapterName | Select-Object ifName,MacAddress,ifIndex
+        $Res = Get-NetAdapter -IncludeHidden -Name $Using:AdapterName | Select-Object ifName,MacAddress,ifIndex
 
         return @{
             IfIndex = $Res.IfIndex;
@@ -38,16 +42,18 @@ function Get-RemoteVMNetAdapterInformation {
            [Parameter(Mandatory = $true)] [string] $AdapterName)
 
     $NetAdapterInformation = Invoke-Command -Session $Session -ScriptBlock {
-        $MacAddress = Get-VMNetworkAdapter -VMName $Using:VMName -Name $Using:AdapterName | Select-Object -ExpandProperty MacAddress
-        $MacAddress = $MacAddress -replace '..(?!$)', '$&-'
+        $NetAdapter = Get-VMNetworkAdapter -VMName $Using:VMName -Name $Using:AdapterName
+        $MacAddress = $NetAdapter.MacAddress -Replace '..(?!$)', '$&-'
+        $GUID = $NetAdapter.Id.ToLower().Replace('microsoft:', '').Replace('\', '--')
 
         return @{
             MACAddress = $MacAddress.Replace("-", ":");
             MACAddressWindows = $MacAddress;
+            GUID = $GUID
         }
     }
 
-    return [NetAdapterMacAddresses] $NetAdapterInformation
+    return [VMNetAdapterInformation] $NetAdapterInformation
 }
 
 function Get-RemoteContainerNetAdapterInformation {
