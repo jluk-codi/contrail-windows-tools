@@ -143,7 +143,11 @@ function Invoke-AgentBuild {
 
     
     Write-Host "Building Agent, MSI and API"
-    scons contrail-vrouter-agent contrail-vrouter-agent.msi controller/src/vnsw/contrail_vrouter_api:sdist
+    scons controller/src/vnsw/contrail_vrouter_api:sdist
+    if ($LASTEXITCODE -ne 0) {
+        throw "Building API failed"
+    }
+    scons contrail-vrouter-agent.msi -j 2
     if ($LASTEXITCODE -ne 0) {
         throw "Building Agent failed"
     }
