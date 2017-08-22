@@ -203,8 +203,6 @@ function Test-SNAT {
         $BroadcastInternalNh = 110
         $BroadcastExternalNh = 111
 
-        $PhysicalAdapter
-
         Write-Host "Proceeding to configure adapters"
 
         Invoke-Command -Session $Session -ScriptBlock {
