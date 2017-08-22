@@ -158,6 +158,10 @@ function New-TestbedVMs {
         Copy-Item -ToSession $Session -Path "agent\contrail-vrouter-agent.msi" -Destination C:\Artifacts\
         Copy-Item -ToSession $Session -Path "agent\contrail-vrouter-api-1.0.tar.gz" -Destination C:\Artifacts\
 
+        Write-Host "Copying Agent test executables"
+        Copy-Item -ToSession $Session -Path "agent\ksync_test.exe" -Destination C:\Artifacts\
+        Copy-Item -ToSession $Session -Path "agent\test_ksync.exe" -Destination C:\Artifacts\
+
         Write-Host "Copying vtest scenarios"
         Copy-Item -ToSession $Session -Path "vrouter\utils\vtest" -Destination C:\Artifacts\ -Recurse -Force
 
