@@ -66,9 +66,10 @@ function Test-SNAT {
 
             return @{
                 Name = $VMAdapter.Name;
+                IfName = $NetAdapter.IfName;
+                IfIndex = $NetAdapter.IfIndex;
                 MacAddressWindows = $MacAddress;
                 MacAddress = $MacAddress.Replace("-", ":");
-                IfIndex = $NetAdapter.ifIndex;
             }
         }
 
@@ -176,11 +177,10 @@ function Test-SNAT {
     function Set-VRouterConfiguration {
         Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
                [Parameter(Mandatory = $true)] [NetAdapterInformation] $PhysicalAdapter,
+               [Parameter(Mandatory = $true)] [NetAdapterInformation] $VHostAdapter,
                [Parameter(Mandatory = $true)] [ContainerNetAdapterInformation] $ContainerAdapter,
-               [Parameter(Mandatory = $true)] [string] $SNATLeftName,
-               [Parameter(Mandatory = $true)] [NetAdapterMacAddresses] $SNATLeft,
-               [Parameter(Mandatory = $true)] [string] $SNATRightName,
-               [Parameter(Mandatory = $true)] [NetAdapterMacAddresses] $SNATRight,
+               [Parameter(Mandatory = $true)] [VMNetAdapterInformation] $SNATLeft,
+               [Parameter(Mandatory = $true)] [VMNetAdapterInformation] $SNATRight,
                [Parameter(Mandatory = $true)] $SNATVeth)
 
         Write-Host "Configure vRouter..."
@@ -203,36 +203,45 @@ function Test-SNAT {
         $BroadcastInternalNh = 110
         $BroadcastExternalNh = 111
 
+        Write-Host "Proceeding to configure adapters"
+
         Invoke-Command -Session $Session -ScriptBlock {
             # Register physical adapter in Contrail
+            Write-Host "Configuring physical and vHost adapters"
             vif --add $Using:PhysicalAdapter.IfName --mac $Using:PhysicalAdapter.MacAddress --vrf 0 --type physical
-            vif --add HNSTransparent --mac $Using:PhysicalAdapter.MacAddress --vrf 0 --type vhost --xconnect $Using:PhysicalAdapter.IfName
+            vif --add $Using:VHostAdapter.IfName --mac $Using:VHostAdapter.MacAddress --vrf 0 --type vhost --xconnect $Using:PhysicalAdapter.IfName
 
             # Register container's NIC as vif
-            vif --add $Using:ContainerAdapter.AdapterShortName --mac $Using:ContainerAdapter.MacAddress --vrf $Using:InternalVrf --type virtual --vif $Using:ContainerVif
-            nh --create $Using:ContainerNh --vrf $Using:InternalVrf --type 2 --el2 --oif $Using:ContainerVif
+            Write-Host "Configuring NIC adapter"
+            vif --add $Using:ContainerAdapter.IfName --mac $Using:ContainerAdapter.MacAddress --vrf $Using:InternalVrf --type virtual
+            nh --create $Using:ContainerNh --vrf $Using:InternalVrf --type 2 --el2 --oif $Using:ContainerAdapter.ifIndex
             rt -c -v $Using:InternalVrf -f 1 -e $Using:ContainerAdapter.MacAddress -n $Using:ContainerNh
 
             # Register SNAT's left adapter ("int")
-            vif --add $Using:SNATLeftName --mac $Using:SNATLeft.MacAddress --vrf $Using:InternalVrf --type virtual --vif $Using:SNATLeftVif
+            Write-Host "Configuring int adapter"
+            vif --add "int" --mac $Using:SNATLeft.MacAddress --vrf $Using:InternalVrf --type virtual --guid $Using:SNatLeft.GUID --vif $Using:SNATLeftVif
             nh --create $Using:SNATLeftNh --vrf $Using:InternalVrf --type 2 --el2 --oif $Using:SNATLeftVif
             rt -c -v $Using:InternalVrf -f 1 -e $Using:SNATLeft.MacAddress -n $Using:SNATLeftNh
 
             # Register SNAT's right adapter ("gw")
-            vif --add $Using:SNATRightName --mac $Using:SNATRight.MacAddress --vrf $Using:ExternalVrf --type virtual --vif $Using:SNATRightVif
+            Write-Host "Configuring gw adapter"
+            vif --add "gw" --mac $Using:SNATRight.MacAddress --vrf $Using:ExternalVrf --type virtual --guid $Using:SNATRight.GUID --vif $Using:SNATRightVif
             nh --create $Using:SNATRightNh --vrf $Using:ExternalVrf --type 2 --el2 --oif $Using:SNATRightVif
             rt -c -v $Using:ExternalVrf -f 1 -e $Using:SNATRight.MacAddress -n $Using:SNATRightNh
 
             # Register SNAT's additional adapter ("veth")
-            vif --add $Using:SNATVeth.Name --mac $Using:SNATVeth.MacAddress --vrf $Using:ExternalVrf --type virtual --vif $Using:SNATVethVif
-            nh --create $Using:SNATVethNh --vrf $Using:ExternalVrf --type 2 --el2 --oif $Using:SNATVethVif
+            Write-Host "Configuring veth adapter"
+            vif --add $Using:SNATVeth.ifName --mac $Using:SNATVeth.MacAddress --vrf $Using:ExternalVrf --type virtual
+            nh --create $Using:SNATVethNh --vrf $Using:ExternalVrf --type 2 --el2 --oif $Using:SNATVeth.ifIndex
             rt -c -v $Using:ExternalVrf -f 1 -e $Using:SNATVeth.MacAddress -n $Using:SNATVethNh
 
             # Broadcast NH (internal network)
+            Write-Host "Configuring broadcast (internal)"
             nh --create $Using:BroadcastInternalNh --vrf $Using:InternalVrf --type 6 --cen --cni $Using:ContainerNH --cni $Using:SNATLeftNh
             rt -c -v $Using:InternalVrf -f 1 -e ff:ff:ff:ff:ff:ff -n $Using:BroadcastInternalNh
 
             # Broadcast NH (external network)
+            Write-Host "Configuring broadcast (external)"
             nh --create $Using:BroadcastExternalNh --vrf $Using:ExternalVrf --type 6 --cen --cni $Using:SNATRightNh --cni $Using:SNATVethNh
             rt -c -v $Using:ExternalVrf -f 1 -e ff:ff:ff:ff:ff:ff -n $Using:BroadcastExternalNh
         }
@@ -382,9 +391,10 @@ function Test-SNAT {
 
     Write-Host "Extracting adapters data..."
     $PhysicalAdapter = Get-RemoteNetAdapterInformation -Session $Session -AdapterName $TestConfiguration.AdapterName
-    $HNSAdapter = Get-RemoteNetAdapterInformation -Session $Session -AdapterName HNSTransparent
-    $SNATLeft = Get-RemoteVMNetAdapterInformation -Session $Session -VMName $SNATVMName -AdapterName $SNATLeftName
-    $SNATRight = Get-RemoteVMNetAdapterInformation -Session $Session -VMName $SNATVMName -AdapterName $SNATRightName
+    $VHostAdapter = Get-RemoteNetAdapterInformation -Session $Session -AdapterName $TestConfiguration.VHostName
+    $HNSAdapter = Get-RemoteNetAdapterInformation -Session $Session -AdapterName $TestConfiguration.VHostName
+    $SNATLeft = Get-RemoteVMNetAdapterInformation -Session $Session -AdapterName $SNATLeftName -VMName $SNATVMName
+    $SNATRight = Get-RemoteVMNetAdapterInformation -Session $Session -AdapterName $SNATRightName -VMName $SNATVMName
     Write-Host "Extracting adapters data... DONE"
 
     # TODO: JW-976: Remove `Set-GWVethForwarding` and `Set-HNSTransparentForwarding` when Agent is functional?
@@ -398,8 +408,8 @@ function Test-SNAT {
     $ContainerNetInfo = Get-RemoteContainerNetAdapterInformation -Session $Session -ContainerID $ContainerID
     Write-Host "Start and configure test container... DONE"
 
-    Set-VRouterConfiguration -Session $Session -PhysicalAdapter $PhysicalAdapter -ContainerAdapter $ContainerNetInfo `
-        -SNATLeftName $SNATLeftName -SNATLeft $SNATLeft -SNATRightName $SNATRightName -SNATRight $SNATRight -SNATVeth $SNATVeth
+    Set-VRouterConfiguration -Session $Session -PhysicalAdapter $PhysicalAdapter -VHostAdapter $VHostAdapter `
+        -ContainerAdapter $ContainerNetInfo -SNATLeft $SNATLeft -SNATRight $SNATRight -SNATVeth $SNATVeth
 
     Set-EndhostConfiguration -Session $Session -PhysicalMac $PhysicalAdapter.MacAddress `
         -EndhostIP $SNATConfiguration.EndhostIP -GatewayIP $SNATConfiguration.GatewayIP `

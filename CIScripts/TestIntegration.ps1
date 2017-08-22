@@ -44,6 +44,7 @@ $DockerDriverConfiguration = [DockerDriverConfiguration] @{
 $TestConfiguration = [TestConfiguration] @{
     AdapterName = $Env:ADAPTER_NAME;
     VMSwitchName = "Layered " + $Env:ADAPTER_NAME;
+    VHostName = "vEthernet (HNSTransparent)"
     ForwardingExtensionName = $Env:FORWARDING_EXTENSION_NAME;
     DockerDriverConfiguration = $DockerDriverConfiguration;
 }

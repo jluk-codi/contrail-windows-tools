@@ -16,7 +16,7 @@ function Test-ICMPoMPLSoGRE {
     . $PSScriptRoot\CommonTestCode.ps1
 
     $Container1IP, $Container2IP = Initialize-MPLSoGRE -Session1 $Session1 -Session2 $Session2 `
-        -Container1ID $Container1ID -Container2ID $Container2ID -AdapterName $TestConfiguration.AdapterName
+        -Container1ID $Container1ID -Container2ID $Container2ID -TestConfiguration $TestConfiguration
 
     Write-Host "Testing ping"
     $Res1 = Invoke-Command -Session $Session1 -ScriptBlock {

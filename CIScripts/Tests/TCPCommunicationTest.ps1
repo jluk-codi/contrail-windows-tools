@@ -20,6 +20,9 @@ function Test-TCPCommunication {
     Write-Host "Getting VM NetAdapter Information"
     $VMNetInfo = Get-RemoteNetAdapterInformation -Session $Session -AdapterName $TestConfiguration.AdapterName
 
+    Write-Host "Getting vHost NetAdapter Information"
+    $VHostInfo = Get-RemoteNetAdapterInformation -Session $Session -AdapterName $TestConfiguration.VHostName
+
     Write-Host "Getting Containers NetAdapter Information"
     $ServerNetInfo = Get-RemoteContainerNetAdapterInformation -Session $Session -ContainerID $ServerID
     $ClientNetInfo = Get-RemoteContainerNetAdapterInformation -Session $Session -ContainerID $ClientID
@@ -27,13 +30,13 @@ function Test-TCPCommunication {
     Write-Host $("Setting a connection between " + $ServerNetInfo.MACAddress + " and " + $ClientNetInfo.MACAddress + "...")
     Invoke-Command -Session $Session -ScriptBlock {
         vif.exe --add $Using:VMNetInfo.IfName --mac $Using:VMNetInfo.MACAddress --vrf 0 --type physical
-        vif.exe --add HNSTransparent --mac $Using:VMNetInfo.MACAddress --vrf 0 --type vhost --xconnect $Using:VMNetInfo.IfName
+        vif.exe --add $Using:VHostInfo.IfName --mac $Using:VHostInfo.MACAddress --vrf 0 --type vhost --xconnect $Using:VMNetInfo.IfName
 
-        vif.exe --add $Using:ServerNetInfo.AdapterShortName --mac $Using:ServerNetInfo.MACAddress --vrf 1 --type virtual --vif 1
-        vif.exe --add $Using:ClientNetInfo.AdapterShortName --mac $Using:ClientNetInfo.MACAddress --vrf 1 --type virtual --vif 2
+        vif.exe --add $Using:ServerNetInfo.IfName --mac $Using:ServerNetInfo.MACAddress --vrf 1 --type virtual
+        vif.exe --add $Using:ClientNetInfo.IfName --mac $Using:ClientNetInfo.MACAddress --vrf 1 --type virtual
 
-        nh.exe --create 1 --vrf 1 --type 2 --el2 --oif 1
-        nh.exe --create 2 --vrf 1 --type 2 --el2 --oif 2
+        nh.exe --create 1 --vrf 1 --type 2 --el2 --oif $Using:ServerNetInfo.IfIndex
+        nh.exe --create 2 --vrf 1 --type 2 --el2 --oif $Using:ClientNetInfo.IfIndex
         nh.exe --create 3 --vrf 1 --type 6 --cen --cni 1 --cni 2
 
         rt.exe -c -v 1 -f 1 -e ff:ff:ff:ff:ff:ff -n 3
