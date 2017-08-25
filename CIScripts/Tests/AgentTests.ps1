@@ -3,7 +3,7 @@ function Run-Test {
            [Parameter(Mandatory = $true)] [string] $TestExecutable)
     Write-Host -NoNewline "===> Agent tests: running $TestExecutable... "
     $Res = Invoke-Command -Session $Session -ScriptBlock {
-        & C:\Artifacts\$using:TestExecutable
+        & C:\Artifacts\$using:TestExecutable --config S:\ji\vnswa_cfg.ini | Out-Null
         $LASTEXITCODE
     }
     if ($Res -eq 0) {
@@ -18,10 +18,13 @@ function Test-Agent {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
            [Parameter(Mandatory = $true)] [TestConfiguration] $TestConfiguration)
     Write-Host "===> Agent tests: setting up an environment."
+    $Res = Invoke-Command -Session $Session -ScriptBlock {
+        $env:Path += ";C:\Program Files\Juniper Networks\Agent"
+    }
     Initialize-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration
-
     $Res = 0
     $AgentTextExecutables = Get-ChildItem .\output\agent | Where-Object {$_.Name -match '^[\W\w]*test[\W\w]*.exe$'}
+    
     Foreach ($TestExecutable in $AgentTextExecutables) {
         $TestRes = Run-Test -Session $Session -TestExecutable $TestExecutable
         if ($TestRes -ne 0) {
