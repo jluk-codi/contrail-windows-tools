@@ -100,16 +100,15 @@ function Enable-DockerDriver {
         $TenantName = $Using:TenantName
 
         Start-Job -ScriptBlock {
-            $Configuration = $Using:Configuration
-            $TenantName = $Using:TenantName
+            Param ($Cfg, $Tenant, $Adapter)
 
-            $Env:OS_USERNAME = $Configuration.Username
-            $Env:OS_PASSWORD = $Configuration.Password
-            $Env:OS_AUTH_URL = $Configuration.AuthUrl
-            $Env:OS_TENANT_NAME = $TenantName
+            $Env:OS_USERNAME = $Cfg.Username
+            $Env:OS_PASSWORD = $Cfg.Password
+            $Env:OS_AUTH_URL = $Cfg.AuthUrl
+            $Env:OS_TENANT_NAME = $Tenant
 
-            & "C:\Program Files\Juniper Networks\contrail-windows-docker.exe" -forceAsInteractive -controllerIP $Configuration.ControllerIP -adapter $Using:AdapterName -vswitchName "Layered <adapter>"
-        } | Out-Null
+            & "C:\Program Files\Juniper Networks\contrail-windows-docker.exe" -forceAsInteractive -controllerIP $Cfg.ControllerIP -adapter "$Adapter" -vswitchName "Layered <adapter>"
+        } -ArgumentList $Configuration, $TenantName, $AdapterName | Out-Null
     }
 
     Start-Sleep -s $WaitTime
