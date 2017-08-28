@@ -164,6 +164,7 @@ function New-TestbedVMs {
             Write-Host "    Copying $TestExecutable"
             Copy-Item -ToSession $Session -Path "agent\$TestExecutable" -Destination C:\Artifacts\
         }
+        Copy-Item -ToSession $Session -Path "agent\vnswa_cfg.ini" -Destination C:\Artifacts\
 
         Write-Host "Copying vtest scenarios"
         Copy-Item -ToSession $Session -Path "vrouter\utils\vtest" -Destination C:\Artifacts\ -Recurse -Force

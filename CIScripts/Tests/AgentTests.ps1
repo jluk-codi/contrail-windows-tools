@@ -3,7 +3,7 @@ function Run-Test {
            [Parameter(Mandatory = $true)] [string] $TestExecutable)
     Write-Host -NoNewline "===> Agent tests: running $TestExecutable... "
     $Res = Invoke-Command -Session $Session -ScriptBlock {
-        & C:\Artifacts\$using:TestExecutable --config S:\ji\vnswa_cfg.ini | Out-Null
+        & C:\Artifacts\$using:TestExecutable --config C:\Artifacts\vnswa_cfg.ini | Out-Null
         $LASTEXITCODE
     }
     if ($Res -eq 0) {
@@ -22,6 +22,16 @@ function Test-Agent {
         $env:Path += ";C:\Program Files\Juniper Networks\Agent"
     }
     Initialize-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration
+    Invoke-Command -Session $Session -ScriptBlock {
+        $ConfigurationFile = "C:\Artifacts\vnswa_cfg.ini"
+        $Configuration = Get-Content $ConfigurationFile
+        $VirtualInterfaceName = (Get-NetAdapter -Name "vEthernet (HNSTransparent)").IfName
+        $PhysicalInterfaceName = (Get-NetAdapter -Name "Ethernet1").IfName
+        $Configuration = $Configuration -replace "name=.*", "name=$VirtualInterfaceName"
+        $Configuration = $Configuration -replace "physical_interface=.*", "physical_interface=$PhysicalInterfaceName"
+        Set-Content $ConfigurationFile $Configuration
+    }
+
     $Res = 0
     $AgentTextExecutables = Get-ChildItem .\output\agent | Where-Object {$_.Name -match '^[\W\w]*test[\W\w]*.exe$'}
     
