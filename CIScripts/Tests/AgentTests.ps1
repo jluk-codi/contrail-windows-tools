@@ -3,8 +3,13 @@ function Run-Test {
            [Parameter(Mandatory = $true)] [string] $TestExecutable)
     Write-Host -NoNewline "===> Agent tests: running $TestExecutable... "
     $Res = Invoke-Command -Session $Session -ScriptBlock {
-        & C:\Artifacts\$using:TestExecutable --config C:\Artifacts\vnswa_cfg.ini | Out-Null
-        $LASTEXITCODE
+        $Res = Invoke-Command -ScriptBlock {
+            $ErrorActionPreference = "SilentlyContinue"
+            Invoke-Expression "C:\Artifacts\$using:TestExecutable --config C:\Artifacts\vnswa_cfg.ini" | Out-Null
+            $LASTEXITCODE
+        }
+        
+        return $Res
     }
     if ($Res -eq 0) {
         Write-Host "Succeeded."
@@ -47,8 +52,6 @@ function Test-Agent {
     if ($Res -eq 0) {
         Write-Host "===> Agent tests: all tests succeeded."
     } else {
-        Write-Host "===> Agent tests: some tests failed."
+        Throw "===> Agent tests: some tests failed."
     }
-
-    return $Res
 }
