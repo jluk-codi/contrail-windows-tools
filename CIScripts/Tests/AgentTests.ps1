@@ -1,12 +1,33 @@
+$DefineTestIfAnOutputSuggestsThatAllTestsHavePassed = {
+    function Test-IfAnOutputSuggestsThatAllTestsHavePassed {
+        Param ([Parameter(Mandatory = $true)] [Object[]] $TestOutput)
+        $NumberOfTests = -1
+        Foreach ($Line in $TestOutput) { #$Lines) {
+            if ($Line -match "\[==========\] (?<HowManyTests>[\d]+) test[s]? from [\d]+ test [\w]* ran[.]*") {
+                $NumberOfTests = $matches.HowManyTests
+            }
+            if ($Line -match "\[  PASSED  \] (?<HowManyTestsHavePassed>[\d]+) test[.]*" -and $NumberOfTests -ge 0) {
+                return $($matches.HowManyTestsHavePassed -eq $NumberOfTests)
+            }
+        }
+        return $False
+    }
+}
+
 function Run-Test {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
-           [Parameter(Mandatory = $true)] [string] $TestExecutable)
+           [Parameter(Mandatory = $true)] [String] $TestExecutable)
     Write-Host -NoNewline "===> Agent tests: running $TestExecutable... "
     $Res = Invoke-Command -Session $Session -ScriptBlock {
         $Res = Invoke-Command -ScriptBlock {
             $ErrorActionPreference = "SilentlyContinue"
-            Invoke-Expression "C:\Artifacts\$using:TestExecutable --config C:\Artifacts\vnswa_cfg.ini" | Out-Null
-            $LASTEXITCODE
+            $TestOutput = Invoke-Expression "C:\Artifacts\$using:TestExecutable --config C:\Artifacts\vnswa_cfg.ini"
+            $SeemsLegitimate = Test-IfAnOutputSuggestsThatAllTestsHavePassed -TestOutput $TestOutput
+            if($LASTEXITCODE -eq 0 -or $SeemsLegitimate) {
+                return 0
+            } else {
+                return $LASTEXITCODE
+            }
         }
         
         return $Res
@@ -27,6 +48,7 @@ function Test-Agent {
         $env:Path += ";C:\Program Files\Juniper Networks\Agent"
     }
     Initialize-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration
+    Invoke-Command -Session $Session -ScriptBlock $DefineTestIfAnOutputSuggestsThatAllTestsHavePassed
     Invoke-Command -Session $Session -ScriptBlock {
         $ConfigurationFile = "C:\Artifacts\vnswa_cfg.ini"
         $Configuration = Get-Content $ConfigurationFile
