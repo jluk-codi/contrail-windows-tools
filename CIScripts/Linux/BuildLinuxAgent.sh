@@ -1,7 +1,7 @@
 # Launches a Vagrant VM and builds vRouter.
 # Run this script from the directory that contains Vagrantfile.
 
-# We don't use CONTROLLER_BRANCH and GENERATEDS_BRANCH because we only build kernel module for now
+# We don't use CONTROLLER_BRANCH and GENERATEDS_BRANCH because we only build vRouter for now
 
 if [ "$#" -ne 5 ]; then
     echo "Usage: TOOLS_BRANCH CONTROLLER_BRANCH VROUTER_BRANCH GENERATEDS_BRANCH SANDESH_BRANCH"
@@ -23,7 +23,7 @@ popd
 pushd vrouter
   git checkout $3 --
 popd
-scons vrouter/vrouter.ko"
+scons vrouter"
 retcode=$?
 vagrant halt
 vagrant destroy -f
