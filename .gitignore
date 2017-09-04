@@ -4,3 +4,8 @@ build-*/
 
 ### Vagrant ###
 .vagrant/
+
+# temp files
+*.swp
+*.swo
+*~

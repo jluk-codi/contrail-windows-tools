@@ -3,12 +3,22 @@ class Repo {
     [string] $Branch;
     [string] $Dir;
     [string] $DefaultBranch;
+    [bool] $AllowBranchOverride;
 
-    Repo ([string] $Url, [string] $Branch, [string] $Dir, [string] $DefaultBranch) {
+    [void] init([string] $Url, [string] $Branch, [string] $Dir, [string] $DefaultBranch, [bool] $AllowBranchOverride) {
         $this.Url = $Url
         $this.Branch = $Branch
         $this.Dir = $Dir
         $this.DefaultBranch = $DefaultBranch
+        $this.AllowBranchOverride = $AllowBranchOverride
+    }
+
+    Repo ([string] $Url, [string] $Branch, [string] $Dir, [string] $DefaultBranch) {
+        $this.init($Url, $Branch, $Dir, $DefaultBranch, $true)
+    }
+
+    Repo ([string] $Url, [string] $Branch, [string] $Dir, [string] $DefaultBranch, [bool] $AllowBranchOverride) {
+        $this.init($Url, $Branch, $Dir, $DefaultBranch, $AllowBranchOverride)
     }
 }
 
@@ -18,14 +28,16 @@ function Copy-Repos {
     Write-Host "Cloning repositories"
     $CustomBranches = @($Repos.Where({ $_.Branch -ne $_.DefaultBranch }) | Select-Object -ExpandProperty Branch -Unique)
     $Repos.ForEach({
-        # If there is only one unique custom branch provided, at first try to use it for all repos.
-        # Otherwise, use branch specific for this repo.
-        $CustomMultiBranch = $(if ($CustomBranches.Count -eq 1) { $CustomBranches[0] } else { $_.Branch })
+        if ($_.AllowBranchOverride) {
+            # If there is only one unique custom branch provided, at first try to use it for all repos.
+            # Otherwise, use branch specific for this repo.
+            $CustomMultiBranch = $(if ($CustomBranches.Count -eq 1) { $CustomBranches[0] } else { $_.Branch })
 
-        Write-Host $("Cloning " +  $_.Url + " from branch: " + $CustomMultiBranch)
-        git clone -b $CustomMultiBranch $_.Url $_.Dir
+            Write-Host $("Cloning " +  $_.Url + " from branch: " + $CustomMultiBranch)
+            git clone -b $CustomMultiBranch $_.Url $_.Dir
+        }
 
-        if ($LASTEXITCODE -ne 0) {
+        if (($LASTEXITCODE -ne 0) -or ! $_.AllowBranchOverride) {
             Write-Host $("Cloning " +  $_.Url + " from branch: " + $_.Branch)
             git clone -b $_.Branch $_.Url $_.Dir
 
