@@ -1,8 +1,8 @@
-$DefineTestIfAnOutputSuggestsThatAllTestsHavePassed = {
-    function Test-IfAnOutputSuggestsThatAllTestsHavePassed {
+$DefineTestIfGTestOutputSuggestsThatAllTestsHavePassed = {
+    function Test-IfGTestOutputSuggestsThatAllTestsHavePassed {
         Param ([Parameter(Mandatory = $true)] [Object[]] $TestOutput)
         $NumberOfTests = -1
-        Foreach ($Line in $TestOutput) { #$Lines) {
+        Foreach ($Line in $TestOutput) {
             if ($Line -match "\[==========\] (?<HowManyTests>[\d]+) test[s]? from [\d]+ test [\w]* ran[.]*") {
                 $NumberOfTests = $matches.HowManyTests
             }
@@ -22,7 +22,13 @@ function Run-Test {
         $Res = Invoke-Command -ScriptBlock {
             $ErrorActionPreference = "SilentlyContinue"
             $TestOutput = Invoke-Expression "C:\Artifacts\$using:TestExecutable --config C:\Artifacts\vnswa_cfg.ini"
-            $SeemsLegitimate = Test-IfAnOutputSuggestsThatAllTestsHavePassed -TestOutput $TestOutput
+
+            # This is a workaround for the following bug:
+            # https://bugs.launchpad.net/opencontrail/+bug/1714205
+            # Even if all tests actually pass, test executables can sometimes
+            # return non-zero exit code.
+            # TODO: It should be removed once the bug is fixed (JW-1110).
+            $SeemsLegitimate = Test-IfGTestOutputSuggestsThatAllTestsHavePassed -TestOutput $TestOutput
             if($LASTEXITCODE -eq 0 -or $SeemsLegitimate) {
                 return 0
             } else {
@@ -48,7 +54,7 @@ function Test-Agent {
         $env:Path += ";C:\Program Files\Juniper Networks\Agent"
     }
     Initialize-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration
-    Invoke-Command -Session $Session -ScriptBlock $DefineTestIfAnOutputSuggestsThatAllTestsHavePassed
+    Invoke-Command -Session $Session -ScriptBlock $DefineTestIfGTestOutputSuggestsThatAllTestsHavePassed
     Invoke-Command -Session $Session -ScriptBlock {
         $ConfigurationFile = "C:\Artifacts\vnswa_cfg.ini"
         $Configuration = Get-Content $ConfigurationFile
