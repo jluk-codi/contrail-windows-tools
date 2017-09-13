@@ -2,7 +2,7 @@ function Test-DockerDriver {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
            [Parameter(Mandatory = $true)] [TestConfiguration] $TestConfiguration)
 
-    Write-Host "===> Running Docker Driver test."
+    Write-Output "===> Running Docker Driver test."
 
     $TestFailed = $false
     $TestsPath = "C:\Program Files\Juniper Networks\"
@@ -28,7 +28,7 @@ function Test-DockerDriver {
             # Invoke-Command used as a workaround for temporary ErrorActionPreference modification
             $Res = Invoke-Command -ScriptBlock {
                 $ErrorActionPreference = "SilentlyContinue"
-                Invoke-Expression -Command $Using:Command | Write-Host
+                Invoke-Expression -Command $Using:Command | Write-Output
                 return $LASTEXITCODE
             }
 
@@ -59,5 +59,5 @@ function Test-DockerDriver {
 
     Clear-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration
 
-    Write-Host "===> Success"
+    Write-Output "===> Success"
 }

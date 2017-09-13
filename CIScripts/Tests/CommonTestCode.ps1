@@ -120,19 +120,19 @@ function Initialize-MPLSoGRE {
         }
     }
 
-    Write-Host "Getting VM NetAdapter Information"
+    Write-Output "Getting VM NetAdapter Information"
     $VM1NetInfo = Get-RemoteNetAdapterInformation -Session $Session1 -AdapterName $TestConfiguration.AdapterName
     $VM2NetInfo = Get-RemoteNetAdapterInformation -Session $Session2 -AdapterName $TestConfiguration.AdapterName
 
-    Write-Host "Getting VM vHost NetAdapter Information"
+    Write-Output "Getting VM vHost NetAdapter Information"
     $VM1VHostInfo = Get-RemoteNetAdapterInformation -Session $Session1 -AdapterName $TestConfiguration.VHostName
     $VM2VHostInfo = Get-RemoteNetAdapterInformation -Session $Session2 -AdapterName $TestConfiguration.VHostName
 
-    Write-Host "Getting Containers NetAdapter Information"
+    Write-Output "Getting Containers NetAdapter Information"
     $Container1NetInfo = Get-RemoteContainerNetAdapterInformation -Session $Session1 -ContainerID $Container1ID
     $Container2NetInfo = Get-RemoteContainerNetAdapterInformation -Session $Session2 -ContainerID $Container2ID
 
-    Write-Host "Initializing vRouter structures"
+    Write-Output "Initializing vRouter structures"
     # IPs of logical routers. They do not have to be IPs of the VMs.
     $VM1LogicalRouterIPAddress = "192.168.3.101"
     $VM2LogicalRouterIPAddress = "192.168.3.102"
@@ -145,7 +145,7 @@ function Initialize-MPLSoGRE {
         -ThisContainerNetInfo $Container2NetInfo -OtherContainerNetInfo $Container1NetInfo -ThisVHostInfo $VM2VHostInfo `
         -ThisIPAddress $VM2LogicalRouterIPAddress -OtherIPAddress $VM1LogicalRouterIPAddress
 
-    Write-Host "Executing netsh"
+    Write-Output "Executing netsh"
     Invoke-Command -Session $Session1 -ScriptBlock {
         $ContainerAdapterName = $Using:Container1NetInfo.AdapterFullName
         docker exec $Using:Container1ID netsh interface ipv4 add neighbors "$ContainerAdapterName" `

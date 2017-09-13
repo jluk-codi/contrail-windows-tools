@@ -25,7 +25,7 @@ class Repo {
 function Copy-Repos {
     Param ([Parameter(Mandatory = $true, HelpMessage = "List of repos to clone")] [Repo[]] $Repos)
     
-    Write-Host "Cloning repositories"
+    Write-Output "Cloning repositories"
     $CustomBranches = @($Repos.Where({ $_.Branch -ne $_.DefaultBranch }) | Select-Object -ExpandProperty Branch -Unique)
     $Repos.ForEach({
         if ($_.AllowBranchOverride) {
@@ -33,12 +33,12 @@ function Copy-Repos {
             # Otherwise, use branch specific for this repo.
             $CustomMultiBranch = $(if ($CustomBranches.Count -eq 1) { $CustomBranches[0] } else { $_.Branch })
 
-            Write-Host $("Cloning " +  $_.Url + " from branch: " + $CustomMultiBranch)
+            Write-Output $("Cloning " +  $_.Url + " from branch: " + $CustomMultiBranch)
             git clone -b $CustomMultiBranch $_.Url $_.Dir
         }
 
         if (($LASTEXITCODE -ne 0) -or ! $_.AllowBranchOverride) {
-            Write-Host $("Cloning " +  $_.Url + " from branch: " + $_.Branch)
+            Write-Output $("Cloning " +  $_.Url + " from branch: " + $_.Branch)
             git clone -b $_.Branch $_.Url $_.Dir
 
             if ($LASTEXITCODE -ne 0) {
@@ -52,10 +52,10 @@ function Invoke-ContrailCommonActions {
     Param ([Parameter(Mandatory = $true)] [string] $ThirdPartyCache,
            [Parameter(Mandatory = $true)] [string] $VSSetupEnvScriptPath)
     
-    Write-Host "Sourcing VS environment variables"
+    Write-Output "Sourcing VS environment variables"
     Invoke-BatchFile "$VSSetupEnvScriptPath"
     
-    Write-Host "Copying common third-party dependencies"
+    Write-Output "Copying common third-party dependencies"
     New-Item -ItemType Directory .\third_party
     Copy-Item -Recurse "$ThirdPartyCache\common\*" third_party\
 
@@ -86,29 +86,29 @@ function Invoke-DockerDriverBuild {
     New-Item -ItemType Directory ./bin
     Push-Location bin
 
-    Write-Host "Installing test runner"
+    Write-Output "Installing test runner"
     go get -u -v github.com/onsi/ginkgo/ginkgo
 
-    Write-Host "Building driver"
+    Write-Output "Building driver"
     go build -v $DriverSrcPath
 
     $srcPath = "$Env:GOPATH/src/$DriverSrcPath"
-    Write-Host $srcPath
+    Write-Output $srcPath
 
-    Write-Host "Precompiling tests"
+    Write-Output "Precompiling tests"
     $modules = @("driver", "controller", "hns", "hnsManager")
     $modules.ForEach({
         .\ginkgo.exe build $srcPath/$_
         Move-Item $srcPath/$_/$_.test ./
     })
 
-    Write-Host "Copying Agent API python script"
+    Write-Output "Copying Agent API python script"
     Copy-Item $srcPath/scripts/agent_api.py ./
 
-    Write-Host "Intalling MSI builder"
+    Write-Output "Intalling MSI builder"
     go get -u -v github.com/mh-cbon/go-msi
 
-    Write-Host "Building MSI"
+    Write-Output "Building MSI"
     Push-Location $srcPath
     & "$Env:GOPATH/bin/go-msi" make --msi docker-driver.msi --arch x64 --version 0.1 --src template --out $pwd/gomsi
     Pop-Location
@@ -126,12 +126,12 @@ function Invoke-ExtensionBuild {
            [Parameter(Mandatory = $true)] [string] $CertPath,
            [Parameter(Mandatory = $true)] [string] $CertPasswordFilePath)
     
-    Write-Host "Copying Extension dependencies"
+    Write-Output "Copying Extension dependencies"
     Copy-Item -Recurse "$ThirdPartyCache\extension\*" third_party\
     Copy-Item -Recurse third_party\cmocka vrouter\test\
 
     
-    Write-Host "Building Extension and Utils"
+    Write-Output "Building Extension and Utils"
     scons vrouter
     if ($LASTEXITCODE -ne 0) {
         throw "Building vRouter solution failed"
@@ -140,21 +140,21 @@ function Invoke-ExtensionBuild {
     $vRouterMSI = "build\debug\vrouter\extension\vRouter.msi"
     $utilsMSI = "build\debug\vrouter\utils\utils.msi"
     
-    Write-Host "Signing utilsMSI"
+    Write-Output "Signing utilsMSI"
     Set-MSISignature -SigntoolPath $SigntoolPath -CertPath $CertPath -CertPasswordFilePath $CertPasswordFilePath -MSIPath $utilsMSI
     
-    Write-Host "Signing vRouterMSI"
+    Write-Output "Signing vRouterMSI"
     Set-MSISignature -SigntoolPath $SigntoolPath -CertPath $CertPath -CertPasswordFilePath $CertPasswordFilePath -MSIPath $vRouterMSI
 }
 
 function Invoke-AgentBuild {
     Param ([Parameter(Mandatory = $true)] [string] $ThirdPartyCache)
     
-    Write-Host "Copying Agent dependencies"
+    Write-Output "Copying Agent dependencies"
     Copy-Item -Recurse "$ThirdPartyCache\agent\*" third_party/
 
     
-    Write-Host "Building Agent, MSI and API"
+    Write-Output "Building Agent, MSI and API"
     scons controller/src/vnsw/contrail_vrouter_api:sdist
     if ($LASTEXITCODE -ne 0) {
         throw "Building API failed"
@@ -164,7 +164,7 @@ function Invoke-AgentBuild {
         throw "Building Agent failed"
     }
 
-    Write-Host "Building tests"
+    Write-Output "Building tests"
 
     $Tests = @()
 
@@ -183,7 +183,7 @@ function Invoke-AgentBuild {
             throw "Building tests failed"
         }
     } else {
-        Write-Host "    No tests to build."
+        Write-Output "    No tests to build."
     }
 }
 

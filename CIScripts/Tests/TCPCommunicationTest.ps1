@@ -2,13 +2,13 @@ function Test-TCPCommunication {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
            [Parameter(Mandatory = $true)] [TestConfiguration] $TestConfiguration)
 
-    Write-Host "===> Running TCP Communication test"
+    Write-Output "===> Running TCP Communication test"
 
     Initialize-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration
 
     $NetworkName = $TestConfiguration.DockerDriverConfiguration.NetworkConfiguration.NetworkName
 
-    Write-Host "Creating containers"
+    Write-Output "Creating containers"
     $ServerID, $ClientID = Invoke-Command -Session $Session -ScriptBlock {
         $ServerID = docker run --network $Using:NetworkName -d iis-tcptest
         $ClientID = docker run --network $Using:NetworkName -d microsoft/nanoserver ping -t localhost
@@ -17,17 +17,17 @@ function Test-TCPCommunication {
 
     . $PSScriptRoot\CommonTestCode.ps1
 
-    Write-Host "Getting VM NetAdapter Information"
+    Write-Output "Getting VM NetAdapter Information"
     $VMNetInfo = Get-RemoteNetAdapterInformation -Session $Session -AdapterName $TestConfiguration.AdapterName
 
-    Write-Host "Getting vHost NetAdapter Information"
+    Write-Output "Getting vHost NetAdapter Information"
     $VHostInfo = Get-RemoteNetAdapterInformation -Session $Session -AdapterName $TestConfiguration.VHostName
 
-    Write-Host "Getting Containers NetAdapter Information"
+    Write-Output "Getting Containers NetAdapter Information"
     $ServerNetInfo = Get-RemoteContainerNetAdapterInformation -Session $Session -ContainerID $ServerID
     $ClientNetInfo = Get-RemoteContainerNetAdapterInformation -Session $Session -ContainerID $ClientID
 
-    Write-Host $("Setting a connection between " + $ServerNetInfo.MACAddress + " and " + $ClientNetInfo.MACAddress + "...")
+    Write-Output $("Setting a connection between " + $ServerNetInfo.MACAddress + " and " + $ClientNetInfo.MACAddress + "...")
     Invoke-Command -Session $Session -ScriptBlock {
         vif.exe --add $Using:VMNetInfo.IfName --mac $Using:VMNetInfo.MACAddress --vrf 0 --type physical
         vif.exe --add $Using:VHostInfo.IfName --mac $Using:VHostInfo.MACAddress --vrf 0 --type vhost --xconnect $Using:VMNetInfo.IfName
@@ -44,7 +44,7 @@ function Test-TCPCommunication {
         rt.exe -c -v 1 -f 1 -e $Using:ClientNetInfo.MACAddress -n 2
     }
 
-    Write-Host "Executing netsh"
+    Write-Output "Executing netsh"
     Invoke-Command -Session $Session -ScriptBlock {
         docker exec $Using:ServerID netsh interface ipv4 add neighbors $Using:ServerNetInfo.AdapterFullName $Using:ClientNetInfo.IPAddress $Using:ClientNetInfo.MACAddressWindows
         docker exec $Using:ClientID netsh interface ipv4 add neighbors $Using:ClientNetInfo.AdapterFullName $Using:ServerNetInfo.IPAddress $Using:ServerNetInfo.MACAddressWindows
@@ -52,11 +52,11 @@ function Test-TCPCommunication {
 
     $Res = Invoke-Command -Session $Session -ScriptBlock {
         $ServerIP = $Using:ServerNetInfo.IPAddress
-        docker exec $ClientID powershell "Invoke-WebRequest -Uri http://${ServerIP}:8080/ -ErrorAction Continue" | Write-Host
+        docker exec $ClientID powershell "Invoke-WebRequest -Uri http://${ServerIP}:8080/ -ErrorAction Continue" | Write-Output
         return $LASTEXITCODE
     }
 
-    Write-Host "Removing containers"
+    Write-Output "Removing containers"
     Invoke-Command -Session $Session -ScriptBlock { docker rm -f $Using:ServerID } | Out-Null
     Invoke-Command -Session $Session -ScriptBlock { docker rm -f $Using:ClientID } | Out-Null
 
@@ -66,5 +66,5 @@ function Test-TCPCommunication {
 
     Clear-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration
 
-    Write-Host "===> Success!"
+    Write-Output "===> Success!"
 }

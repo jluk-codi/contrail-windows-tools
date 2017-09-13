@@ -7,7 +7,7 @@ $ToolsAllowBranchOverride = $true
 if (Test-Path Env:GERRIT_CHANGE_ID)  {
     $whitelist_domain = "codilime.com"
     $whitelist_emails = @('sagarc@juniper.net')
-    Write-Host "Running Gerrit-trigger preparations..."
+    Write-Output "Running Gerrit-trigger preparations..."
     # exit early with success if the event does not originate from a whitelisted account
     $run = $false
     if ($Env:GERRIT_CHANGE_OWNER_EMAIL.EndsWith($whitelist_domain) -or $Env:GERRIT_PATCHSET_UPLOADER_EMAIL.EndsWith($whitelist_domain)) {
@@ -17,7 +17,7 @@ if (Test-Path Env:GERRIT_CHANGE_ID)  {
         $run = $true
     }
     if (!$run) {
-        Write-Host "Exiting because the event author is not on the whitelist. Change owner email: $Env:GERRIT_CHANGE_OWNER_EMAIL, Patchset owner email: $Env:GERRIT_PATCHSET_UPLOADER_EMAIL, Whitelist: *@$whitelist_domain, $whitelist_emails"
+        Write-Output "Exiting because the event author is not on the whitelist. Change owner email: $Env:GERRIT_CHANGE_OWNER_EMAIL, Patchset owner email: $Env:GERRIT_PATCHSET_UPLOADER_EMAIL, Whitelist: *@$whitelist_domain, $whitelist_emails"
         Exit 0
     }
     #$Env:DRIVER_REPO_URL = 
@@ -69,12 +69,12 @@ Copy-Repos -Repos $Repos
 # Additional logic for builds triggered from Gerrit
 # merge the patchset and exit on merge failure
 if (Test-Path Env:GERRIT_CHANGE_ID) {
-    Write-Host "Running Gerrit-trigger patchset merging..."
+    Write-Output "Running Gerrit-trigger patchset merging..."
     cd $repo_map[$Env:PROJECT]
     git fetch origin $Env:GERRIT_REFSPEC
     git merge FETCH_HEAD
     if ($LastExitCode -ne 0) {
-        Write-Host "Patchset merging failed."
+        Write-Output "Patchset merging failed."
         Exit 1
     }
     cd .. # TODO: pushd/popd

@@ -1,4 +1,4 @@
-Write-Host "Setting up environment variables..."
+Write-Output "Setting up environment variables..."
 $Env:VRouterDirectory = "C:\Artifacts"
 $Env:VRouterPhysicalIfName = "Ethernet1"
 $Env:VMSwitchName = "Layered " + $Env:VRouterPhysicalIfName

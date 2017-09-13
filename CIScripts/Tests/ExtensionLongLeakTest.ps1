@@ -4,29 +4,29 @@ function Test-ExtensionLongLeak {
            [Parameter(Mandatory = $true)] [TestConfiguration] $TestConfiguration)
 
     if ($TestDurationHours -eq 0) {
-        Write-Host "===> Extension leak test skipped."
+        Write-Output "===> Extension leak test skipped."
         return
     }
 
-    Write-Host "===> Running Extension leak test. Duration: ${TestDurationHours}h..."
+    Write-Output "===> Running Extension leak test. Duration: ${TestDurationHours}h..."
 
     Initialize-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration
 
     $TestStartTime = Get-Date
     $TestEndTime = ($TestStartTime).AddHours($TestDurationHours)
 
-    Write-Host "It's $TestStartTime. Going to sleep until $TestEndTime."
+    Write-Output "It's $TestStartTime. Going to sleep until $TestEndTime."
 
     $CurrentTime = $TestStartTime
     while ($CurrentTime -lt $TestEndTime) {
         Start-Sleep -s (60 * 10) # 10 minutes
         $CurrentTime = Get-Date
-        Write-Host "It's $CurrentTime. Sleeping..."
+        Write-Output "It's $CurrentTime. Sleeping..."
     }
 
-    Write-Host "Waking up!"
+    Write-Output "Waking up!"
 
     Clear-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration
 
-    Write-Host "===> Success!"
+    Write-Output "===> Success!"
 }

@@ -49,7 +49,7 @@ function Enable-VRouterExtension {
            [Parameter(Mandatory = $true)] [string] $ForwardingExtensionName,
            [Parameter(Mandatory = $false)] [string] $ContainerNetworkName = "testnet")
 
-    Write-Host "Enabling Extension"
+    Write-Output "Enabling Extension"
 
     Invoke-Command -Session $Session -ScriptBlock {
         New-ContainerNetwork -Mode Transparent -NetworkAdapterName $Using:AdapterName -Name $Using:ContainerNetworkName | Out-Null
@@ -63,7 +63,7 @@ function Disable-VRouterExtension {
            [Parameter(Mandatory = $true)] [string] $VMSwitchName,
            [Parameter(Mandatory = $true)] [string] $ForwardingExtensionName)
 
-    Write-Host "Disabling Extension"
+    Write-Output "Disabling Extension"
 
     Invoke-Command -Session $Session -ScriptBlock {
         Disable-VMSwitchExtension -VMSwitchName $Using:VMSwitchName -Name $Using:ForwardingExtensionName -ErrorAction SilentlyContinue | Out-Null
@@ -89,7 +89,7 @@ function Enable-DockerDriver {
            [Parameter(Mandatory = $true)] [DockerDriverConfiguration] $Configuration,
            [Parameter(Mandatory = $false)] [int] $WaitTime = 60)
 
-    Write-Host "Enabling Docker Driver"
+    Write-Output "Enabling Docker Driver"
 
     $TenantName = $Configuration.NetworkConfiguration.TenantName
 
@@ -117,7 +117,7 @@ function Enable-DockerDriver {
 function Disable-DockerDriver {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session)
 
-    Write-Host "Disabling Docker Driver"
+    Write-Output "Disabling Docker Driver"
 
     Stop-ProcessIfExists -Session $Session -ProcessName "contrail-windows-docker"
 
@@ -139,7 +139,7 @@ function Enable-VRouterAgent {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
            [Parameter(Mandatory = $true)] [string] $ConfigFilePath)
 
-    Write-Host "Enabling Agent"
+    Write-Output "Enabling Agent"
 
     Invoke-Command -Session $Session -ScriptBlock {
         Start-Job -ScriptBlock {
@@ -151,7 +151,7 @@ function Enable-VRouterAgent {
 function Disable-VRouterAgent {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session)
 
-    Write-Host "Disabling Agent"
+    Write-Output "Disabling Agent"
 
     Stop-ProcessIfExists -Session $Session -ProcessName "contrail-vrouter-agent"
 }
@@ -166,7 +166,7 @@ function New-DockerNetwork {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
            [Parameter(Mandatory = $true)] [DockerNetworkConfiguration] $Configuration)
 
-    Write-Host "Creating network $($Configuration.NetworkName)"
+    Write-Output "Creating network $($Configuration.NetworkName)"
 
     $NetworkID = Invoke-Command -Session $Session -ScriptBlock {
         $TenantName = ($Using:Configuration).TenantName
@@ -180,7 +180,7 @@ function New-DockerNetwork {
 function Remove-AllUnusedDockerNetworks {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session)
 
-    Write-Host "Removing all docker networks"
+    Write-Output "Removing all docker networks"
 
     Invoke-Command -Session $Session -ScriptBlock {
         docker network prune --force | Out-Null
@@ -191,7 +191,7 @@ function Initialize-TestConfiguration {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
            [Parameter(Mandatory = $true)] [TestConfiguration] $TestConfiguration)
 
-    Write-Host "Initializing Test Configuration"
+    Write-Output "Initializing Test Configuration"
 
     # DockerDriver automatically enables Extension, so there is no need to enable it manually
     Enable-DockerDriver -Session $Session -AdapterName $TestConfiguration.AdapterName -Configuration $TestConfiguration.DockerDriverConfiguration -WaitTime 0
@@ -227,7 +227,7 @@ function Clear-TestConfiguration {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
            [Parameter(Mandatory = $true)] [TestConfiguration] $TestConfiguration)
 
-    Write-Host "Cleaning up test configuration"
+    Write-Output "Cleaning up test configuration"
 
     Remove-AllUnusedDockerNetworks -Session $Session
     Disable-VRouterAgent -Session $Session

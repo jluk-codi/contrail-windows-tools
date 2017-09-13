@@ -15,15 +15,15 @@ for ($i = 0; $i -lt $VMsNeeded; $i++) {
     $VMNames += $VMBaseName + "-" + $i.ToString()
 }
 
-Write-Host "Starting Testbeds:"
-$VMNames.ForEach({ Write-Host $_ })
+Write-Output "Starting Testbeds:"
+$VMNames.ForEach({ Write-Output $_ })
 
 $Sessions = New-TestbedVMs -VMNames $VMNames -InstallArtifacts $true -PowerCLIScriptPath $PowerCLIScriptPath `
     -VIServerAccessData $VIServerAccessData -VMCreationSettings $VMCreationSettings -VMCredentials $VMCredentials `
     -ArtifactsDir $ArtifactsDir -DumpFilesLocation $DumpFilesLocation -DumpFilesBaseName $DumpFilesBaseName -MaxWaitVMMinutes $MaxWaitVMMinutes
 
-Write-Host "Started Testbeds:"
-$Sessions.ForEach({ Write-Host $_.ComputerName })
+Write-Output "Started Testbeds:"
+$Sessions.ForEach({ Write-Output $_.ComputerName })
 
 # Sourcing test functions
 . $PSScriptRoot\Tests\Tests.ps1
@@ -74,5 +74,5 @@ if($Env:RUN_DRIVER_TESTS -eq "1") {
     Test-DockerDriver -Session $Sessions[0] -TestConfiguration $TestConfiguration
 }
 
-Write-Host "Removing VMs..."
+Write-Output "Removing VMs..."
 Remove-TestbedVMs -VMNames $VMNames -PowerCLIScriptPath $PowerCLIScriptPath -VIServerAccessData $VIServerAccessData

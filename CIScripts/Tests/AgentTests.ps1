@@ -1,7 +1,7 @@
 function Run-Test {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
            [Parameter(Mandatory = $true)] [string] $TestExecutable)
-    Write-Host -NoNewline "===> Agent tests: running $TestExecutable... "
+    Write-Output -NoNewline "===> Agent tests: running $TestExecutable... "
     $Res = Invoke-Command -Session $Session -ScriptBlock {
         $Res = Invoke-Command -ScriptBlock {
             $ErrorActionPreference = "SilentlyContinue"
@@ -12,9 +12,9 @@ function Run-Test {
         return $Res
     }
     if ($Res -eq 0) {
-        Write-Host "Succeeded."
+        Write-Output "Succeeded."
     } else {
-        Write-Host "Failed (exit code: $Res)."
+        Write-Output "Failed (exit code: $Res)."
     }
     return $Res
 }
@@ -22,7 +22,7 @@ function Run-Test {
 function Test-Agent {
     Param ([Parameter(Mandatory = $true)] [System.Management.Automation.Runspaces.PSSession] $Session,
            [Parameter(Mandatory = $true)] [TestConfiguration] $TestConfiguration)
-    Write-Host "===> Agent tests: setting up an environment."
+    Write-Output "===> Agent tests: setting up an environment."
     $Res = Invoke-Command -Session $Session -ScriptBlock {
         $env:Path += ";C:\Program Files\Juniper Networks\Agent"
     }
@@ -48,9 +48,9 @@ function Test-Agent {
     }
 
     Clear-TestConfiguration -Session $Session -TestConfiguration $TestConfiguration | Out-Null
-    Write-Host "===> Agent tests: environment has been cleaned up."
+    Write-Output "===> Agent tests: environment has been cleaned up."
     if ($Res -eq 0) {
-        Write-Host "===> Agent tests: all tests succeeded."
+        Write-Output "===> Agent tests: all tests succeeded."
     } else {
         Throw "===> Agent tests: some tests failed."
     }

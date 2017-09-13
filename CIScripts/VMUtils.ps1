@@ -57,7 +57,7 @@ function New-TestbedVMs {
         Param ([Parameter(Mandatory = $true)] [string] $VMName,
                [Parameter(Mandatory = $true)] [NewVMCreationSettings] $VMCreationSettings)
 
-        Write-Host "Creating and starting $VMName"
+        Write-Output "Creating and starting $VMName"
         $ResourcePool = Get-ResourcePool -Name $VMCreationSettings.ResourcePoolName
         $Template = Get-Template -Name $VMCreationSettings.TemplateName
         $CustomizationSpec = Get-OSCustomizationSpec -Name $VMCreationSettings.CustomizationSpecName
@@ -79,7 +79,7 @@ function New-TestbedVMs {
         $MaxRetries = [math]::Ceiling($MaxWaitMinutes * 60 / $DelaySec)
 
         for ($RetryNum = 0; $VMNamesList.Count -ne 0; ) {
-            Write-Host "Retry number $RetryNum / $MaxRetries"
+            Write-Output "Retry number $RetryNum / $MaxRetries"
             ping $VMNamesList[0] | Out-Null
 
             if ($? -eq $true) {
@@ -151,78 +151,78 @@ function New-TestbedVMs {
             New-Item -ItemType Directory -Force C:\Artifacts | Out-Null
         }
 
-        Write-Host "Copying Docker driver installer"
+        Write-Output "Copying Docker driver installer"
         Copy-Item -ToSession $Session -Path "docker_driver\docker-driver.msi" -Destination C:\Artifacts\
 
-        Write-Host "Copying Agent and Contrail vRouter API"
+        Write-Output "Copying Agent and Contrail vRouter API"
         Copy-Item -ToSession $Session -Path "agent\contrail-vrouter-agent.msi" -Destination C:\Artifacts\
         Copy-Item -ToSession $Session -Path "agent\contrail-vrouter-api-1.0.tar.gz" -Destination C:\Artifacts\
 
-        Write-Host "Copying Agent test executables"
+        Write-Output "Copying Agent test executables"
         $AgentTextExecutables = Get-ChildItem .\agent | Where-Object {$_.Name -match '^[\W\w]*test[\W\w]*.exe$'}
         Foreach ($TestExecutable in $AgentTextExecutables) {
-            Write-Host "    Copying $TestExecutable"
+            Write-Output "    Copying $TestExecutable"
             Copy-Item -ToSession $Session -Path "agent\$TestExecutable" -Destination C:\Artifacts\
         }
         Copy-Item -ToSession $Session -Path "agent\vnswa_cfg.ini" -Destination C:\Artifacts\
 
-        Write-Host "Copying vtest scenarios"
+        Write-Output "Copying vtest scenarios"
         Copy-Item -ToSession $Session -Path "vrouter\utils\vtest" -Destination C:\Artifacts\ -Recurse -Force
 
-        Write-Host "Copying vRouter and Utils MSIs"
+        Write-Output "Copying vRouter and Utils MSIs"
         Copy-Item -ToSession $Session -Path "vrouter\vRouter.msi" -Destination C:\Artifacts\
         Copy-Item -ToSession $Session -Path "vrouter\utils.msi" -Destination C:\Artifacts\
         Copy-Item -ToSession $Session -Path "vrouter\*.cer" -Destination C:\Artifacts\ # TODO: Remove after JW-798
 
         Invoke-Command -Session $Session -ScriptBlock {
-            Write-Host "Installing Contrail vRouter API"
+            Write-Output "Installing Contrail vRouter API"
             pip2 install C:\Artifacts\contrail-vrouter-api-1.0.tar.gz | Out-Null
 
-            Write-Host "Installing vRouter Extension"
+            Write-Output "Installing vRouter Extension"
             Import-Certificate -CertStoreLocation Cert:\LocalMachine\Root\ "C:\Artifacts\vRouter.cer" | Out-Null # TODO: Remove after JW-798
             Import-Certificate -CertStoreLocation Cert:\LocalMachine\TrustedPublisher\ "C:\Artifacts\vRouter.cer" | Out-Null # TODO: Remove after JW-798
             Start-Process msiexec.exe -ArgumentList @("/i", "C:\Artifacts\vRouter.msi", "/quiet") -Wait
 
-            Write-Host "Installing Utils"
+            Write-Output "Installing Utils"
             Start-Process msiexec.exe -ArgumentList @("/i", "C:\Artifacts\utils.msi", "/quiet") -Wait
 
-            Write-Host "Installing Docker driver"
+            Write-Output "Installing Docker driver"
             Start-Process msiexec.exe -ArgumentList @("/i", "C:\Artifacts\docker-driver.msi", "/quiet") -Wait
 
-            Write-Host "Installing Agent"
+            Write-Output "Installing Agent"
             Start-Process msiexec.exe -ArgumentList @("/i", "C:\Artifacts\contrail-vrouter-agent.msi", "/quiet") -Wait
 
             # Refresh Path
             $Env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
         }
 
-        Write-Host "Copying Docker driver tests"
+        Write-Output "Copying Docker driver tests"
         $TestFiles = @("controller", "hns", "hnsManager", "driver")
         $TestFiles.ForEach( { Copy-Item -ToSession $Session -Path "docker_driver\$_.test" -Destination "C:\Program Files\Juniper Networks\$_.test.exe" })
 
         Pop-Location
     }
 
-    Write-Host "Connecting to VIServer"
+    Write-Output "Connecting to VIServer"
     Initialize-VIServer -PowerCLIScriptPath $PowerCLIScriptPath -VIServerAccessData $VIServerAccessData
 
-    Write-Host "Starting VMs"
+    Write-Output "Starting VMs"
     $VMNames.ForEach({ New-StartedVM -VMName $_ -VMCreationSettings $VMCreationSettings })
 
-    Write-Host "Waiting for VMs to start..."
+    Write-Output "Waiting for VMs to start..."
     $VMsList = [Collections.Generic.List[String]] $VMNames
     Wait-VMs -VMNames $VMsList -MaxWaitMinutes $MaxWaitVMMinutes
 
     $Sessions = New-RemoteSessions -VMNames $VMNames -Credentials $VMCredentials
 
-    Write-Host "Initializing Crash dump saving and configuring NBL debugging"
+    Write-Output "Initializing Crash dump saving and configuring NBL debugging"
     $Sessions.ForEach({
         Initialize-CrashDumpSaving -Session $_ -DumpFilesLocation $DumpFilesLocation -DumpFilesBaseName $DumpFilesBaseName
         Enable-NBLDebugging -Session $_
     })
 
     if ($InstallArtifacts -eq $true) {
-        Write-Host "Installing artifacts"
+        Write-Output "Installing artifacts"
         $Sessions.ForEach({ Install-Artifacts -Session $_ -ArtifactsDir $ArtifactsDir })
     }
 
@@ -237,7 +237,7 @@ function Remove-TestbedVMs {
     Initialize-VIServer -PowerCLIScriptPath $PowerCLIScriptPath -VIServerAccessData $VIServerAccessData
 
     $VMNames.ForEach({
-        Write-Host "Removing $_ from datastore"
+        Write-Output "Removing $_ from datastore"
         Stop-VM -VM $_ -Kill -Confirm:$false | Out-Null
         Remove-VM -VM $_ -DeletePermanently -Confirm:$false | Out-Null
     })
