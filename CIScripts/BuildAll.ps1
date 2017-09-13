@@ -44,7 +44,7 @@ if (Test-Path Env:GERRIT_CHANGE_ID)  {
         $Env:TOOLS_BRANCH = $Env:GERRIT_BRANCH
     }
     # always use the windows branch for the contrail-tools repo when running from Gerrit
-    $ToolsAllowBranchOverride = $false
+    $ToolsAllowBranchOverride = $true
 }
 
 $repo_map = @{
