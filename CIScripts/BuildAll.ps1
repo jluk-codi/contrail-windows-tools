@@ -72,6 +72,8 @@ if (Test-Path Env:GERRIT_CHANGE_ID) {
     Write-Output "Running Gerrit-trigger patchset merging..."
     cd $repo_map[$Env:PROJECT]
     git fetch origin $Env:GERRIT_REFSPEC
+    git config user.email "you@example.com"
+    git config --global user.name "Your Name"
     git merge FETCH_HEAD
     if ($LastExitCode -ne 0) {
         Write-Output "Patchset merging failed."
