@@ -70,7 +70,7 @@ Copy-Repos -Repos $Repos
 # merge the patchset and exit on merge failure
 if (Test-Path Env:GERRIT_CHANGE_ID) {
     Write-Output "Running Gerrit-trigger patchset merging..."
-    cd $repo_map[$Env:PROJECT]
+    pushd $repo_map[$Env:PROJECT]
     git fetch origin $Env:GERRIT_REFSPEC
     git config user.email "you@example.com"
     git config --global user.name "Your Name"
@@ -79,7 +79,7 @@ if (Test-Path Env:GERRIT_CHANGE_ID) {
         Write-Output "Patchset merging failed."
         Exit 1
     }
-    cd .. # TODO: pushd/popd
+    popd
 }
 
 Invoke-ContrailCommonActions -ThirdPartyCache $Env:THIRD_PARTY_CACHE_PATH -VSSetupEnvScriptPath $Env:VS_SETUP_ENV_SCRIPT_PATH
